@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Search, X, Star, Clock, Globe, ListFilter, AlertCircle, Tv } from 'lucide-react';
 import { Channel, Category, Country } from '../types';
 import { ChannelCard } from './ChannelCard';
+import { channelMatchesCategory } from '../services/iptv';
 
 interface ChannelBrowserProps {
   channels: Channel[];
@@ -64,7 +65,7 @@ export const ChannelBrowser: React.FC<ChannelBrowserProps> = ({
 
     // Filter by category
     if (selectedCategory && selectedCategory !== 'all') {
-      list = list.filter((ch) => (ch.group || '').toLowerCase() === selectedCategory.toLowerCase());
+      list = list.filter((ch) => channelMatchesCategory(ch, selectedCategory));
     }
 
     // Filter by country
@@ -79,6 +80,7 @@ export const ChannelBrowser: React.FC<ChannelBrowserProps> = ({
         (ch) =>
           ch.name.toLowerCase().includes(q) ||
           (ch.group || '').toLowerCase().includes(q) ||
+          (ch.categories && ch.categories.some((cat) => cat.toLowerCase().includes(q))) ||
           (ch.countryName || '').toLowerCase().includes(q) ||
           (ch.language || '').toLowerCase().includes(q)
       );

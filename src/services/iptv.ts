@@ -1,4 +1,19 @@
 import { Channel, Category, Country } from '../types';
+import {
+  normalizeCategoryName,
+  extractChannelCategories,
+  channelMatchesCategory,
+  splitCategoryString,
+  extractCategories,
+} from './categories';
+
+export {
+  normalizeCategoryName,
+  extractChannelCategories,
+  channelMatchesCategory,
+  splitCategoryString,
+  extractCategories,
+};
 
 // Curated 24/7 high-reliability, public, legitimate live broadcast streams (tested & verified)
 export const CURATED_CHANNELS: Channel[] = [
@@ -184,6 +199,66 @@ export const CURATED_CHANNELS: Channel[] = [
     tvgName: 'CNA',
     isVerified: true,
   },
+  {
+    id: 'easytv-entertainment',
+    name: 'EasyTV Entertainment Showcase (HD)',
+    logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
+    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    group: 'Entertainment',
+    categories: ['Entertainment'],
+    country: 'US',
+    countryName: 'United States',
+    language: 'English',
+    resolution: '1080p',
+    tvgId: 'Entertainment.showcase',
+    tvgName: 'Entertainment Showcase',
+    isVerified: true,
+  },
+  {
+    id: 'easytv-kids',
+    name: 'EasyTV Kids Animation Showcase',
+    logo: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
+    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    group: 'Kids',
+    categories: ['Kids'],
+    country: 'US',
+    countryName: 'United States',
+    language: 'English',
+    resolution: '1080p',
+    tvgId: 'Kids.showcase',
+    tvgName: 'Kids Showcase',
+    isVerified: true,
+  },
+  {
+    id: 'easytv-devotional',
+    name: 'Peace & Faith TV (Devotional Live)',
+    logo: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?w=200&auto=format&fit=crop&q=80',
+    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    group: 'Devotional',
+    categories: ['Devotional'],
+    country: 'IN',
+    countryName: 'India',
+    language: 'English',
+    resolution: '1080p',
+    tvgId: 'Faith.showcase',
+    tvgName: 'Faith TV',
+    isVerified: true,
+  },
+  {
+    id: 'easytv-music',
+    name: 'EasyTV Music & Live Concerts',
+    logo: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80',
+    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    group: 'Music',
+    categories: ['Music'],
+    country: 'US',
+    countryName: 'United States',
+    language: 'English',
+    resolution: '1080p',
+    tvgId: 'Music.showcase',
+    tvgName: 'Music TV',
+    isVerified: true,
+  },
 ];
 
 // Popular country mappings
@@ -290,12 +365,17 @@ export function parseM3U(m3uContent: string, maxChannels?: number): Channel[] {
           const countryCode = currentInfo.country || 'US';
           const countryMeta = COUNTRY_NAMES[countryCode];
 
+          const rawGroup = currentInfo.group || 'General';
+          const categories = extractChannelCategories({ group: rawGroup });
+          const primaryGroup = categories[0] || 'General';
+
           channels.push({
             id,
             name: currentInfo.name,
             logo: currentInfo.logo || '',
             url: streamUrl,
-            group: currentInfo.group || 'General',
+            group: primaryGroup,
+            categories,
             country: countryCode,
             countryName: countryMeta ? countryMeta.name : countryCode,
             language: currentInfo.language || 'English',
@@ -380,26 +460,6 @@ export async function fetchPlaylist(url: string): Promise<Channel[]> {
   return [...CURATED_CHANNELS, ...uniqueParsed];
 }
 
-/**
- * Extract unique categories and their channel counts
- */
-export function extractCategories(channels: Channel[]): Category[] {
-  const counts: Record<string, number> = {};
-  for (const ch of channels) {
-    const grp = ch.group || 'General';
-    counts[grp] = (counts[grp] || 0) + 1;
-  }
-
-  const list: Category[] = Object.keys(counts)
-    .sort()
-    .map((name) => ({
-      id: name.toLowerCase(),
-      name,
-      count: counts[name],
-    }));
-
-  return [{ id: 'all', name: 'All Categories', count: channels.length }, ...list];
-}
 
 /**
  * Extract unique countries from channel list

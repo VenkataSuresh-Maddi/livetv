@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, X, Globe, ListFilter, AlertCircle, Tv, ChevronDown } from 'lucide-react';
 import { Channel, Category, Country } from '../types';
 import { ChannelCard } from './ChannelCard';
+import { channelMatchesCategory } from '../services/iptv';
 
 interface CatalogBrowserProps {
   channels: Channel[];
@@ -48,7 +49,7 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
     let list = channels;
 
     if (selectedCategory && selectedCategory !== 'all') {
-      list = list.filter((ch) => (ch.group || '').toLowerCase() === selectedCategory.toLowerCase());
+      list = list.filter((ch) => channelMatchesCategory(ch, selectedCategory));
     }
 
     if (selectedCountry && selectedCountry !== 'all') {
@@ -61,6 +62,7 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
         (ch) =>
           ch.name.toLowerCase().includes(q) ||
           (ch.group || '').toLowerCase().includes(q) ||
+          (ch.categories && ch.categories.some((cat) => cat.toLowerCase().includes(q))) ||
           (ch.countryName || '').toLowerCase().includes(q) ||
           (ch.language || '').toLowerCase().includes(q)
       );

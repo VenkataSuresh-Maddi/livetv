@@ -17,7 +17,8 @@ import {
   CURATED_CHANNELS, 
   fetchPlaylist, 
   extractCategories, 
-  extractCountries 
+  extractCountries,
+  channelMatchesCategory,
 } from './services/iptv';
 import { useHlsPlayer } from './hooks/useHlsPlayer';
 import { useTvNavigation } from './hooks/useTvNavigation';
@@ -42,7 +43,12 @@ import {
   RotateCw, 
   CheckCircle2, 
   Sparkles, 
-  Layers 
+  Layers,
+  Smile,
+  Heart,
+  Folder,
+  FolderOpen,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -297,48 +303,44 @@ export default function App() {
     return channels.filter((c) => favSet.has(c.id));
   }, [preferences.favorites, channels]);
 
-  // Curated genre rows
+  // Dynamic genre channel lists based strictly on channel metadata
   const newsChannels = useMemo(() => {
-    return channels.filter((c) => (c.group || '').toLowerCase().includes('news'));
+    return channels.filter((c) => channelMatchesCategory(c, 'News'));
   }, [channels]);
 
   const sportsChannels = useMemo(() => {
-    return channels.filter((c) => {
-      const grp = (c.group || '').toLowerCase();
-      return grp.includes('sport') || grp.includes('racing') || grp.includes('outdoor');
-    });
+    return channels.filter((c) => channelMatchesCategory(c, 'Sports'));
   }, [channels]);
 
   const movieChannels = useMemo(() => {
-    return channels.filter((c) => {
-      const grp = (c.group || '').toLowerCase();
-      return grp.includes('movie') || grp.includes('cinema') || grp.includes('film');
-    });
+    return channels.filter((c) => channelMatchesCategory(c, 'Movies'));
   }, [channels]);
 
   const entertainmentChannels = useMemo(() => {
-    return channels.filter((c) => {
-      const grp = (c.group || '').toLowerCase();
-      return grp.includes('entertainment') || grp.includes('general') || grp.includes('series');
-    });
+    return channels.filter((c) => channelMatchesCategory(c, 'Entertainment'));
   }, [channels]);
 
   const musicChannels = useMemo(() => {
-    return channels.filter((c) => (c.group || '').toLowerCase().includes('music'));
+    return channels.filter((c) => channelMatchesCategory(c, 'Music'));
+  }, [channels]);
+
+  const kidsChannels = useMemo(() => {
+    return channels.filter((c) => channelMatchesCategory(c, 'Kids'));
+  }, [channels]);
+
+  const devotionalChannels = useMemo(() => {
+    return channels.filter((c) => channelMatchesCategory(c, 'Devotional'));
   }, [channels]);
 
   const documentaryChannels = useMemo(() => {
-    return channels.filter((c) => {
-      const grp = (c.group || '').toLowerCase();
-      return grp.includes('doc') || grp.includes('science') || grp.includes('nature') || grp.includes('culture');
-    });
+    return channels.filter((c) => channelMatchesCategory(c, 'Documentary'));
   }, [channels]);
 
   // Related channels in current playing channel's category
   const relatedChannels = useMemo(() => {
     if (!selectedChannel) return [];
     return channels
-      .filter((c) => c.id !== selectedChannel.id && (c.group || '').toLowerCase() === (selectedChannel.group || '').toLowerCase())
+      .filter((c) => c.id !== selectedChannel.id && channelMatchesCategory(c, selectedChannel.group))
       .slice(0, 24);
   }, [channels, selectedChannel]);
 
@@ -572,6 +574,34 @@ export default function App() {
                   />
                 )}
 
+                {/* Kids & Family */}
+                {kidsChannels.length > 0 && (
+                  <NetflixRow
+                    title="Kids & Family Animation"
+                    subtitle="Cartoons, youth programs & family friendly series"
+                    channels={kidsChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Smile className="w-5 h-5 text-red-500" />}
+                  />
+                )}
+
+                {/* Devotional & Faith */}
+                {devotionalChannels.length > 0 && (
+                  <NetflixRow
+                    title="Devotional & Spiritual"
+                    subtitle="Faith broadcasts, spiritual lectures, hymns & live prayers"
+                    channels={devotionalChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Heart className="w-5 h-5 text-red-500" />}
+                  />
+                )}
+
                 {/* Complete Catalog Explorer */}
                 <div className="pt-8">
                   <CatalogBrowser
@@ -619,21 +649,79 @@ export default function App() {
                         updatePreferences({ selectedCategory: cat.id });
                         window.scrollTo({ top: 400, behavior: 'smooth' });
                       }}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 ${
                         isSelected
-                          ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-600/30'
+                          ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-600/30 ring-2 ring-red-400'
                           : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <h3 className="font-extrabold text-sm sm:text-base">{cat.name}</h3>
-                      <p className={`text-xs mt-1 ${isSelected ? 'text-white/80' : 'text-zinc-500 font-mono'}`}>
-                        {cat.count.toLocaleString()} Channels
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className={isSelected ? 'text-white' : 'text-red-500'}>
+                          {cat.id === 'all' ? (
+                            <Layers className="w-5 h-5" />
+                          ) : cat.id === 'entertainment' ? (
+                            <Tv className="w-5 h-5" />
+                          ) : cat.id === 'sports' ? (
+                            <Trophy className="w-5 h-5" />
+                          ) : cat.id === 'news' ? (
+                            <Newspaper className="w-5 h-5" />
+                          ) : cat.id === 'movies' ? (
+                            <Film className="w-5 h-5" />
+                          ) : cat.id === 'kids' ? (
+                            <Smile className="w-5 h-5" />
+                          ) : cat.id === 'devotional' ? (
+                            <Heart className="w-5 h-5" />
+                          ) : cat.id === 'music' ? (
+                            <Music className="w-5 h-5" />
+                          ) : cat.id === 'documentary' ? (
+                            <Compass className="w-5 h-5" />
+                          ) : (
+                            <Folder className="w-5 h-5" />
+                          )}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                          {cat.count.toLocaleString()}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm sm:text-base leading-snug">{cat.name}</h3>
+                        <p className={`text-xs mt-0.5 ${isSelected ? 'text-white/80' : 'text-zinc-500'}`}>
+                          {cat.id === 'all' ? 'All live channels' : `${cat.name} channels`}
+                        </p>
+                      </div>
                     </button>
                   );
                 })}
               </div>
             </div>
+
+            {/* Active Category Folder Indicator */}
+            {preferences.selectedCategory !== 'all' && (
+              <div className="bg-gradient-to-r from-red-950/60 via-zinc-900 to-zinc-900 border border-red-800/40 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30">
+                    <FolderOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase font-extrabold tracking-wider text-red-400">Category Folder</span>
+                      <span className="text-xs text-zinc-400">• Filtered Channels</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-white">
+                      {categories.find((c) => c.id === preferences.selectedCategory)?.name || preferences.selectedCategory}
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updatePreferences({ selectedCategory: 'all' })}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  <span>View All Categories</span>
+                </button>
+              </div>
+            )}
 
             {/* Catalog Explorer filtered by category */}
             <CatalogBrowser

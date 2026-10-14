@@ -4,6 +4,7 @@ export interface Channel {
   logo: string;
   url: string;
   group: string; // Category (e.g. News, Entertainment, Sports)
+  categories?: string[]; // Normalized categories list
   country?: string; // Country code e.g. "US", "UK", "FR"
   countryName?: string;
   language?: string;
