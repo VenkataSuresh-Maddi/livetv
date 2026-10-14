@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tv, Search, X, RotateCw, Settings, Star, Clock, Sparkles } from 'lucide-react';
+import { Tv, Search, X, RotateCw, Settings, Star, Clock, Sparkles, Globe } from 'lucide-react';
 import { UserPreferences } from '../types';
 
 interface NavbarProps {
@@ -11,6 +11,8 @@ interface NavbarProps {
   onRefreshChannels: () => void;
   isRefreshing: boolean;
   onOpenSettings: () => void;
+  onOpenLanguages?: () => void;
+  preferredLanguages?: string[];
   favoritesCount: number;
   recentsCount: number;
 }
@@ -24,6 +26,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshChannels,
   isRefreshing,
   onOpenSettings,
+  onOpenLanguages,
+  preferredLanguages = [],
   favoritesCount,
   recentsCount,
 }) => {
@@ -154,6 +158,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
           </div>
+
+          {/* Languages Personalization Button */}
+          {onOpenLanguages && (
+            <button
+              type="button"
+              onClick={onOpenLanguages}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                preferredLanguages.length > 0
+                  ? 'bg-red-600/15 border-red-500/50 text-white hover:bg-red-600/25 shadow-sm'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800 hover:border-zinc-700'
+              }`}
+              title="Personalize Languages"
+            >
+              <Globe className="w-3.5 h-3.5 text-red-500" />
+              <span className="hidden sm:inline">
+                {preferredLanguages.length > 0
+                  ? preferredLanguages.length === 1
+                    ? preferredLanguages[0]
+                    : `${preferredLanguages[0]} +${preferredLanguages.length - 1}`
+                  : 'Languages'}
+              </span>
+              <span className="sm:hidden font-mono text-[11px]">
+                {preferredLanguages.length > 0 ? preferredLanguages.length : 'Lang'}
+              </span>
+            </button>
+          )}
 
           {/* Total Channels Pill */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-semibold text-zinc-300">

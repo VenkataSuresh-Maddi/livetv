@@ -19,6 +19,10 @@ import {
   extractCategories, 
   extractCountries,
   channelMatchesCategory,
+  extractLanguages,
+  channelMatchesLanguage,
+  getRecommendedChannelsForLanguages,
+  getNativeLanguageName,
 } from './services/iptv';
 import { useHlsPlayer } from './hooks/useHlsPlayer';
 import { useTvNavigation } from './hooks/useTvNavigation';
@@ -30,6 +34,7 @@ import { CatalogBrowser } from './components/CatalogBrowser';
 import { SettingsModal } from './components/SettingsModal';
 import { FireTvGuideModal } from './components/FireTvGuideModal';
 import { VirtualRemote } from './components/VirtualRemote';
+import { LanguageOnboardingModal } from './components/LanguageOnboardingModal';
 import { 
   Radio, 
   Clock, 
@@ -48,7 +53,8 @@ import {
   Heart,
   Folder,
   FolderOpen,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 
 export default function App() {
@@ -62,6 +68,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshProgressMsg, setRefreshProgressMsg] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState<boolean>(false);
   const [isFireTvGuideOpen, setIsFireTvGuideOpen] = useState<boolean>(false);
 
   // Update preferences helper
@@ -189,9 +196,15 @@ export default function App() {
     };
   }, []);
 
-  // Categories and countries derived from channels
+  // Categories, countries, and languages derived from channels
   const categories = useMemo(() => extractCategories(channels), [channels]);
   const countries = useMemo(() => extractCountries(channels), [channels]);
+  const languages = useMemo(() => extractLanguages(channels), [channels]);
+
+  // Recommended channels personalized for user's preferred languages
+  const recommendedLanguageChannels = useMemo(() => {
+    return getRecommendedChannelsForLanguages(channels, preferences.preferredLanguages, 30);
+  }, [channels, preferences.preferredLanguages]);
 
   // Safe back from player handler: exits fullscreen if open and returns to home view
   const handleBackFromPlayer = useCallback(() => {
@@ -361,6 +374,8 @@ export default function App() {
         onRefreshChannels={() => refreshChannels()}
         isRefreshing={isRefreshing}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenLanguages={() => setIsLanguageModalOpen(true)}
+        preferredLanguages={preferences.preferredLanguages}
         favoritesCount={preferences.favorites.length}
         recentsCount={recentChannels.length}
       />
@@ -449,6 +464,99 @@ export default function App() {
                   onToggleFavorite={handleToggleFavorite}
                   totalChannels={channels.length}
                 />
+
+                {/* Language Personalization Bar */}
+                <div className="bg-gradient-to-r from-zinc-900 via-[#181818] to-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 shrink-0">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-black tracking-widest text-red-500 bg-red-950/60 border border-red-800/40 px-2 py-0.5 rounded-full">
+                          Language Personalization
+                        </span>
+                        {preferences.preferredLanguages && preferences.preferredLanguages.length > 0 && (
+                          <span className="text-xs text-zinc-400 font-medium">
+                            • {preferences.preferredLanguages.length} Active {preferences.preferredLanguages.length === 1 ? 'Language' : 'Languages'}
+                          </span>
+                        )}
+                      </div>
+                      {preferences.preferredLanguages && preferences.preferredLanguages.length > 0 ? (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-zinc-400">Your Languages:</span>
+                          {preferences.preferredLanguages.map((lang) => {
+                            const native = getNativeLanguageName(lang);
+                            return (
+                              <span
+                                key={lang}
+                                className="px-2.5 py-0.5 rounded-lg bg-red-600/20 text-red-300 border border-red-500/30 text-xs font-bold"
+                              >
+                                {lang} {native ? `(${native})` : ''}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs sm:text-sm text-zinc-300 mt-1">
+                          Personalize your live TV guide with your preferred languages (Telugu, Tamil, Hindi, Kannada, Malayalam, Bengali, Marathi, English...).
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLanguageModalOpen(true)}
+                    className="self-start sm:self-auto px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold border border-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-red-500" />
+                    <span>
+                      {preferences.preferredLanguages && preferences.preferredLanguages.length > 0
+                        ? 'Edit Languages'
+                        : 'Choose Languages'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Personalized Rows for Selected Languages */}
+                {preferences.preferredLanguages && preferences.preferredLanguages.length > 0 && (
+                  <>
+                    {/* Recommended Channels in User's Languages */}
+                    {recommendedLanguageChannels.length > 0 && (
+                      <NetflixRow
+                        title="Recommended For You"
+                        subtitle={`Top live channels in ${preferences.preferredLanguages.join(', ')}`}
+                        channels={recommendedLanguageChannels}
+                        selectedChannel={selectedChannel}
+                        favorites={preferences.favorites}
+                        onSelectChannel={handleSelectChannel}
+                        onToggleFavorite={handleToggleFavorite}
+                        icon={<Sparkles className="w-5 h-5 text-amber-400" />}
+                      />
+                    )}
+
+                    {/* Dedicated Row per selected language */}
+                    {preferences.preferredLanguages.map((lang) => {
+                      const langChannels = channels.filter((c) => channelMatchesLanguage(c, lang));
+                      if (langChannels.length === 0) return null;
+                      const native = getNativeLanguageName(lang);
+                      return (
+                        <NetflixRow
+                          key={lang}
+                          title={`${lang} Live TV`}
+                          subtitle={native ? `${native} • Live broadcasts, entertainment & regional news` : `Live broadcasts in ${lang}`}
+                          channels={langChannels}
+                          selectedChannel={selectedChannel}
+                          favorites={preferences.favorites}
+                          onSelectChannel={handleSelectChannel}
+                          onToggleFavorite={handleToggleFavorite}
+                          icon={<Globe className="w-5 h-5 text-red-500" />}
+                        />
+                      );
+                    })}
+                  </>
+                )}
 
                 {/* Continue Watching / Recents Carousel */}
                 {recentChannels.length > 0 && (
@@ -610,13 +718,16 @@ export default function App() {
                     favorites={preferences.favorites}
                     categories={categories}
                     countries={countries}
+                    languages={languages}
                     selectedCategory={preferences.selectedCategory}
                     selectedCountry={preferences.selectedCountry}
+                    selectedLanguage={preferences.selectedLanguage}
                     searchQuery={preferences.searchQuery}
                     onSelectChannel={handleSelectChannel}
                     onToggleFavorite={handleToggleFavorite}
                     onSelectCategory={(cat) => updatePreferences({ selectedCategory: cat })}
                     onSelectCountry={(c) => updatePreferences({ selectedCountry: c })}
+                    onSelectLanguage={(l) => updatePreferences({ selectedLanguage: l })}
                     onSearchChange={(q) => updatePreferences({ searchQuery: q })}
                   />
                 </div>
@@ -730,13 +841,16 @@ export default function App() {
               favorites={preferences.favorites}
               categories={categories}
               countries={countries}
+              languages={languages}
               selectedCategory={preferences.selectedCategory}
               selectedCountry={preferences.selectedCountry}
+              selectedLanguage={preferences.selectedLanguage}
               searchQuery={preferences.searchQuery}
               onSelectChannel={handleSelectChannel}
               onToggleFavorite={handleToggleFavorite}
               onSelectCategory={(cat) => updatePreferences({ selectedCategory: cat })}
               onSelectCountry={(c) => updatePreferences({ selectedCountry: c })}
+              onSelectLanguage={(l) => updatePreferences({ selectedLanguage: l })}
               onSearchChange={(q) => updatePreferences({ searchQuery: q })}
             />
           </div>
@@ -887,6 +1001,27 @@ export default function App() {
         onRefreshCatalogue={refreshChannels}
         isRefreshing={isRefreshing}
         channelCount={channels.length}
+        onOpenLanguageModal={() => setIsLanguageModalOpen(true)}
+      />
+
+      {/* Language Onboarding & Preferences Modal */}
+      <LanguageOnboardingModal
+        isOpen={!preferences.hasCompletedLanguageOnboarding || isLanguageModalOpen}
+        isOnboarding={!preferences.hasCompletedLanguageOnboarding}
+        languages={languages}
+        initialSelectedLanguages={preferences.preferredLanguages || []}
+        onSave={(selected) => {
+          updatePreferences({
+            preferredLanguages: selected,
+            hasCompletedLanguageOnboarding: true,
+          });
+          setIsLanguageModalOpen(false);
+        }}
+        onSkip={() => {
+          updatePreferences({ hasCompletedLanguageOnboarding: true });
+          setIsLanguageModalOpen(false);
+        }}
+        onClose={() => setIsLanguageModalOpen(false)}
       />
 
       {/* Fire TV APK Guide Modal */}

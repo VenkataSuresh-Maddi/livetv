@@ -59,6 +59,13 @@ export interface PlayerState {
   retryCount: number;
 }
 
+export interface Language {
+  id: string;
+  name: string;
+  nativeName?: string;
+  count: number;
+}
+
 export type DeviceMode = 'auto' | 'mobile' | 'tablet' | 'desktop' | 'tv';
 
 export interface UserPreferences {
@@ -67,6 +74,9 @@ export interface UserPreferences {
   lastWatchedChannelId: string | null;
   selectedCategory: string;
   selectedCountry: string;
+  selectedLanguage?: string; // Filter catalog by language
+  preferredLanguages: string[]; // User's preferred languages for personalization
+  hasCompletedLanguageOnboarding: boolean;
   searchQuery: string;
   highContrast: boolean;
   largeText: boolean;
@@ -78,3 +88,4 @@ export interface UserPreferences {
   activePlaylistUrl: string;
   lastCatalogueUpdate: number | null;
 }
+

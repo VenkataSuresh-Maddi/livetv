@@ -7,7 +7,8 @@ import {
   Check, 
   Crop, 
   Tv, 
-  ShieldCheck 
+  ShieldCheck,
+  Globe 
 } from 'lucide-react';
 import { UserPreferences, AspectRatioMode } from '../types';
 import { POPULAR_PLAYLIST_SOURCES } from '../services/iptv';
@@ -20,6 +21,7 @@ interface SettingsModalProps {
   onRefreshCatalogue: (overrideUrl?: string) => void;
   isRefreshing: boolean;
   channelCount: number;
+  onOpenLanguageModal?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -30,6 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRefreshCatalogue,
   isRefreshing,
   channelCount,
+  onOpenLanguageModal,
 }) => {
   const [customUrl, setCustomUrl] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -207,6 +210,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <p className="text-[10px] text-zinc-400 mt-0.5">{item.desc}</p>
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Language Personalization */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-red-500 flex items-center gap-1.5">
+              <Globe className="w-4 h-4" />
+              <span>Language Personalization</span>
+            </h3>
+
+            <div className="p-4 rounded-2xl bg-[#1a1a1a] border border-zinc-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-white">Preferred TV Languages</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Personalizes your home page and recommendations without location tracking.
+                  </p>
+                </div>
+                {onOpenLanguageModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenLanguageModal();
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Manage Languages
+                  </button>
+                )}
+              </div>
+
+              {/* Badges of currently selected languages */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {preferences.preferredLanguages && preferences.preferredLanguages.length > 0 ? (
+                  preferences.preferredLanguages.map((lang) => (
+                    <span
+                      key={lang}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-semibold flex items-center gap-1"
+                    >
+                      <Check className="w-3 h-3 text-red-500" />
+                      <span>{lang}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-500 italic">
+                    No preferred languages selected (showing all global channels)
+                  </span>
+                )}
               </div>
             </div>
           </div>

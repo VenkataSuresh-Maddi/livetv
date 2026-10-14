@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, X, Globe, ListFilter, AlertCircle, Tv, ChevronDown } from 'lucide-react';
-import { Channel, Category, Country } from '../types';
+import { Channel, Category, Country, Language } from '../types';
 import { ChannelCard } from './ChannelCard';
-import { channelMatchesCategory } from '../services/iptv';
+import { channelMatchesCategory, channelMatchesLanguage } from '../services/iptv';
 
 interface CatalogBrowserProps {
   channels: Channel[];
@@ -10,13 +10,16 @@ interface CatalogBrowserProps {
   favorites: string[];
   categories: Category[];
   countries: Country[];
+  languages?: Language[];
   selectedCategory: string;
   selectedCountry: string;
+  selectedLanguage?: string;
   searchQuery: string;
   onSelectChannel: (channel: Channel) => void;
   onToggleFavorite: (channelId: string) => void;
   onSelectCategory: (categoryId: string) => void;
   onSelectCountry: (countryCode: string) => void;
+  onSelectLanguage?: (language: string) => void;
   onSearchChange: (query: string) => void;
 }
 
@@ -28,13 +31,16 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
   favorites,
   categories,
   countries,
+  languages = [],
   selectedCategory,
   selectedCountry,
+  selectedLanguage = 'all',
   searchQuery,
   onSelectChannel,
   onToggleFavorite,
   onSelectCategory,
   onSelectCountry,
+  onSelectLanguage,
   onSearchChange,
 }) => {
   const [displayCount, setDisplayCount] = useState<number>(PAGE_SIZE);
@@ -42,9 +48,9 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
   // Reset pagination when filters change
   useEffect(() => {
     setDisplayCount(PAGE_SIZE);
-  }, [selectedCategory, selectedCountry, searchQuery]);
+  }, [selectedCategory, selectedCountry, selectedLanguage, searchQuery]);
 
-  // Filter channels based on category, country, and search
+  // Filter channels based on category, country, language, and search
   const filteredChannels = useMemo(() => {
     let list = channels;
 
@@ -54,6 +60,10 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
 
     if (selectedCountry && selectedCountry !== 'all') {
       list = list.filter((ch) => ch.country === selectedCountry);
+    }
+
+    if (selectedLanguage && selectedLanguage !== 'all') {
+      list = list.filter((ch) => channelMatchesLanguage(ch, selectedLanguage));
     }
 
     if (searchQuery.trim()) {
@@ -138,6 +148,28 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Language Selector */}
+            {languages.length > 0 && onSelectLanguage && (
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-1.5">
+                <span className="text-xs font-semibold text-zinc-400">Lang:</span>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => onSelectLanguage(e.target.value)}
+                  aria-label="Filter channels by language"
+                  className="bg-transparent text-xs sm:text-sm text-zinc-200 focus:outline-none cursor-pointer"
+                >
+                  <option value="all" className="bg-zinc-900 text-white">
+                    All Languages
+                  </option>
+                  {languages.map((l) => (
+                    <option key={l.id} value={l.name} className="bg-zinc-900 text-white">
+                      {l.name} {l.nativeName ? `(${l.nativeName})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
