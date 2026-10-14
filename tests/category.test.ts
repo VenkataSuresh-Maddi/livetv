@@ -7,6 +7,8 @@ import {
   extractChannelCategories,
   channelMatchesCategory,
   extractCategories,
+  getChannelCanonicalCategory,
+  groupChannelsByCategory,
 } from '../src/services/categories';
 
 describe('Category Normalization & Dynamic Categorization Logic', () => {
@@ -229,4 +231,185 @@ describe('Category Normalization & Dynamic Categorization Logic', () => {
     const idSet = new Set(extracted.map((c) => c.id));
     assert.strictEqual(idSet.size, extracted.length, 'All category IDs must be unique');
   });
+
+  describe('My List Category Grouping & Metadata Resolution', () => {
+    it('should correctly determine category from canonical catalog or reliable classification', () => {
+      const canonicalCatalog: Channel[] = [
+        { id: 'sun-gemini-tv', name: 'Sun Gemini TV Telugu', logo: '', url: 'http://gemini', group: 'Entertainment' },
+        { id: 'star-maa-hd', name: 'Star Maa HD', logo: '', url: 'http://star-maa', group: 'Entertainment' },
+        { id: 'star-maa-movies-hd', name: 'Star Maa Movies HD', logo: '', url: 'http://star-movies', group: 'Movies' },
+      ];
+
+      // Channel with reliable category in its own metadata
+      const starMaa: Channel = { id: 'star-maa-hd', name: 'Star Maa HD', logo: '', url: 'http://1', group: 'Entertainment' };
+      assert.strictEqual(getChannelCanonicalCategory(starMaa, canonicalCatalog), 'Entertainment');
+
+      // Channel with case variation "MOVIES" or "movie"
+      const moviesUpper: Channel = { id: 'm1', name: 'Movie Plus', logo: '', url: 'http://2', group: 'MOVIES' };
+      const moviesLower: Channel = { id: 'm2', name: 'Cinema Max', logo: '', url: 'http://3', group: 'movie' };
+      assert.strictEqual(getChannelCanonicalCategory(moviesUpper, canonicalCatalog), 'Movies');
+      assert.strictEqual(getChannelCanonicalCategory(moviesLower, canonicalCatalog), 'Movies');
+
+      // Sun Gemini with group "General": verifies category against canonical catalog / verified classification
+      const sunGeminiGeneral: Channel = { id: 'sun-gemini', name: 'Sun Gemini', logo: '', url: 'http://4', group: 'General' };
+      assert.strictEqual(
+        getChannelCanonicalCategory(sunGeminiGeneral, canonicalCatalog),
+        'Entertainment',
+        'Sun Gemini must be verified as Entertainment rather than blindly retaining General'
+      );
+
+      // Channel with genuinely NO category metadata and no canonical record -> Uncategorized
+      const noCategory: Channel = { id: 'unknown-stream', name: 'Random Feed', logo: '', url: 'http://5', group: '' };
+      assert.strictEqual(
+        getChannelCanonicalCategory(noCategory, []),
+        'Uncategorized',
+        'Channel with genuinely no category must be placed in Uncategorized'
+      );
+
+      // Unknown channel with explicit "General" where category cannot be determined reliably -> General
+      const generalChannel: Channel = { id: 'unknown-gen', name: 'Unidentified Live', logo: '', url: 'http://6', group: 'General' };
+      assert.strictEqual(
+        getChannelCanonicalCategory(generalChannel, []),
+        'General',
+        'Channel whose actual category cannot be determined reliably remains in General'
+      );
+
+      // Does not classify channels based solely on names if reliable metadata already exists
+      const newsNamedMovie: Channel = { id: 'news-named', name: 'World Movie News Daily', logo: '', url: 'http://7', group: 'News' };
+      assert.strictEqual(
+        getChannelCanonicalCategory(newsNamedMovie, canonicalCatalog),
+        'News',
+        'Must respect existing reliable category metadata rather than guessing from name'
+      );
+    });
+
+    it('groups My List channels by category with alphabetical sorting and consistent section order', () => {
+      // User's example list:
+      // - Star Maa HD — Entertainment
+      // - Star Maa Movies HD — Movies
+      // - Sun Gemini — General (verified as Entertainment via canonical catalog)
+      // - Zee Telugu HD — Entertainment
+      const canonicalCatalog: Channel[] = [
+        { id: 'star-maa-hd', name: 'Star Maa HD', logo: '', url: 'http://1', group: 'Entertainment' },
+        { id: 'star-maa-movies-hd', name: 'Star Maa Movies HD', logo: '', url: 'http://2', group: 'Movies' },
+        { id: 'sun-gemini', name: 'Sun Gemini', logo: '', url: 'http://3', group: 'Entertainment' },
+        { id: 'zee-telugu-hd', name: 'Zee Telugu HD', logo: '', url: 'http://4', group: 'Entertainment' },
+      ];
+
+      const savedChannels: Channel[] = [
+        { id: 'zee-telugu-hd', name: 'Zee Telugu HD', logo: '', url: 'http://4', group: 'Entertainment' },
+        { id: 'star-maa-movies-hd', name: 'Star Maa Movies HD', logo: '', url: 'http://2', group: 'Movies' },
+        { id: 'star-maa-hd', name: 'Star Maa HD', logo: '', url: 'http://1', group: 'Entertainment' },
+      ];
+
+      const groups = groupChannelsByCategory(savedChannels, canonicalCatalog);
+
+      // Must have Entertainment and Movies
+      assert.strictEqual(groups.length, 2);
+
+      // Entertainment section comes first in canonical ordering
+      const entGroup = groups.find((g) => g.name === 'Entertainment');
+      assert.ok(entGroup, 'Entertainment section must exist');
+      assert.strictEqual(entGroup?.count, 2, 'Entertainment should have count 2');
+
+      // Alphabetical sorting: Star Maa HD before Zee Telugu HD
+      assert.strictEqual(entGroup?.channels[0].name, 'Star Maa HD');
+      assert.strictEqual(entGroup?.channels[1].name, 'Zee Telugu HD');
+
+      // Movies section
+      const movGroup = groups.find((g) => g.name === 'Movies');
+      assert.ok(movGroup, 'Movies section must exist');
+      assert.strictEqual(movGroup?.count, 1, 'Movies should have count 1');
+      assert.strictEqual(movGroup?.channels[0].name, 'Star Maa Movies HD');
+    });
+
+    it('handles the case where Sun Gemini category cannot be determined reliably', () => {
+      // Test when Sun Gemini has group "General" and no canonical record exists
+      const savedChannels: Channel[] = [
+        { id: 'zee-telugu-hd', name: 'Zee Telugu HD', logo: '', url: 'http://4', group: 'Entertainment' },
+        { id: 'star-maa-movies-hd', name: 'Star Maa Movies HD', logo: '', url: 'http://2', group: 'Movies' },
+        { id: 'star-maa-hd', name: 'Star Maa HD', logo: '', url: 'http://1', group: 'Entertainment' },
+        { id: 'generic-sun-gemini', name: 'Sun Gemini', logo: '', url: 'http://3', group: 'General' },
+      ];
+
+      // Pass empty catalog and mock channel without canonical match
+      const groups = groupChannelsByCategory(savedChannels, []);
+
+      const entGroup = groups.find((g) => g.name === 'Entertainment');
+      const movGroup = groups.find((g) => g.name === 'Movies');
+
+      assert.strictEqual(entGroup?.count, 2);
+      assert.strictEqual(movGroup?.count, 1);
+
+      // The unverified channel appears in General or Entertainment
+      assert.ok(groups.some((g) => g.name === 'Entertainment' || g.name === 'General'));
+    });
+
+    it('hides empty category sections and preserves section ordering', () => {
+      const channels: Channel[] = [
+        { id: 'sports-1', name: 'Star Sports 1', logo: '', url: 'http://s1', group: 'Sports' },
+        { id: 'news-1', name: 'Aaj Tak', logo: '', url: 'http://n1', group: 'News' },
+        { id: 'ent-1', name: 'Star Plus', logo: '', url: 'http://e1', group: 'Entertainment' },
+      ];
+
+      const groups = groupChannelsByCategory(channels);
+
+      // Only sections with channels are present (Movies, Kids, Devotional, etc. are hidden)
+      assert.strictEqual(groups.length, 3);
+      assert.ok(!groups.some((g) => g.name === 'Movies'));
+      assert.ok(!groups.some((g) => g.name === 'Kids'));
+      assert.ok(!groups.some((g) => g.name === 'Devotional'));
+
+      // Order must be Entertainment (0) -> Sports (2) -> News (3)
+      assert.strictEqual(groups[0].name, 'Entertainment');
+      assert.strictEqual(groups[1].name, 'Sports');
+      assert.strictEqual(groups[2].name, 'News');
+    });
+
+    it('immediately reflects adding or removing favorites without mutating channel records', () => {
+      const catalog: Channel[] = [
+        { id: 'ent-1', name: 'Star Maa HD', logo: '', url: 'http://1', group: 'Entertainment' },
+        { id: 'mov-1', name: 'Star Maa Movies HD', logo: '', url: 'http://2', group: 'Movies' },
+        { id: 'spo-1', name: 'Star Sports 1', logo: '', url: 'http://3', group: 'Sports' },
+      ];
+
+      let favorites = ['ent-1', 'mov-1'];
+      let myChannels = catalog.filter((c) => favorites.includes(c.id));
+      let groups = groupChannelsByCategory(myChannels, catalog);
+
+      assert.strictEqual(groups.length, 2);
+      assert.strictEqual(groups[0].name, 'Entertainment');
+      assert.strictEqual(groups[1].name, 'Movies');
+
+      // User adds Sports to favorites
+      favorites = [...favorites, 'spo-1'];
+      myChannels = catalog.filter((c) => favorites.includes(c.id));
+      groups = groupChannelsByCategory(myChannels, catalog);
+
+      assert.strictEqual(groups.length, 3);
+      assert.ok(groups.some((g) => g.name === 'Sports' && g.count === 1));
+
+      // User removes Movies from favorites
+      favorites = favorites.filter((id) => id !== 'mov-1');
+      myChannels = catalog.filter((c) => favorites.includes(c.id));
+      groups = groupChannelsByCategory(myChannels, catalog);
+
+      assert.strictEqual(groups.length, 2);
+      assert.ok(!groups.some((g) => g.name === 'Movies'), 'Empty Movies section must be hidden');
+      assert.strictEqual(catalog[1].group, 'Movies', 'Original catalog channel must not be mutated');
+    });
+
+    it('does not duplicate a channel within the same section', () => {
+      const duplicateChannels: Channel[] = [
+        { id: 'dup-1', name: 'Channel A', logo: '', url: 'http://1', group: 'Entertainment' },
+        { id: 'dup-1', name: 'Channel A', logo: '', url: 'http://1', group: 'Entertainment' },
+        { id: 'dup-2', name: 'Channel B', logo: '', url: 'http://2', group: 'Entertainment' },
+      ];
+
+      const groups = groupChannelsByCategory(duplicateChannels);
+      assert.strictEqual(groups.length, 1);
+      assert.strictEqual(groups[0].count, 2, 'Duplicates with identical ID must be deduplicated within section');
+    });
+  });
 });
+

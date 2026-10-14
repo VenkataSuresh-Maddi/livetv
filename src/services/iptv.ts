@@ -5,6 +5,10 @@ import {
   channelMatchesCategory,
   splitCategoryString,
   extractCategories,
+  getChannelCanonicalCategory,
+  groupChannelsByCategory,
+  CategoryGroup,
+  MY_LIST_CATEGORY_ORDER,
 } from './categories';
 import {
   normalizeLanguageName,
@@ -21,6 +25,9 @@ export {
   channelMatchesCategory,
   splitCategoryString,
   extractCategories,
+  getChannelCanonicalCategory,
+  groupChannelsByCategory,
+  MY_LIST_CATEGORY_ORDER,
   normalizeLanguageName,
   getNativeLanguageName,
   channelMatchesLanguage,
@@ -28,6 +35,7 @@ export {
   getRecommendedChannelsForLanguages,
   CANONICAL_LANGUAGES,
 };
+export type { CategoryGroup };
 
 // Curated 24/7 high-reliability, public, legitimate live broadcast streams (tested & verified)
 export const CURATED_CHANNELS: Channel[] = [
@@ -318,6 +326,21 @@ export const CURATED_CHANNELS: Channel[] = [
     resolution: '1080p',
     tvgId: 'StarMaa.in',
     tvgName: 'Star Maa',
+    isVerified: true,
+  },
+  {
+    id: 'star-maa-movies-hd',
+    name: 'Star Maa Movies HD',
+    logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200&auto=format&fit=crop&q=80',
+    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    group: 'Movies',
+    categories: ['Movies'],
+    country: 'IN',
+    countryName: 'India',
+    language: 'Telugu',
+    resolution: '1080p',
+    tvgId: 'StarMaaMovies.in',
+    tvgName: 'Star Maa Movies',
     isVerified: true,
   },
   {

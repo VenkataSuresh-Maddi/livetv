@@ -237,3 +237,241 @@ export function extractCategories(channels: Channel[]): Category[] {
     ...sortedList,
   ];
 }
+
+/**
+ * Standard priority order for category sections.
+ * Entertainment, Movies, Sports, News, Music, Devotional, Kids, Documentary, Lifestyle, General, Uncategorized.
+ */
+export const MY_LIST_CATEGORY_ORDER = [
+  'entertainment',
+  'movies',
+  'sports',
+  'news',
+  'music',
+  'devotional',
+  'kids',
+  'documentary',
+  'lifestyle',
+  'general',
+  'uncategorized',
+];
+
+/**
+ * Known verified channel classifications used when category metadata in 3rd-party playlists
+ * is missing or set to a generic fallback like "General".
+ */
+export const VERIFIED_CHANNEL_CLASSIFICATIONS: Record<string, string> = {
+  // Telugu
+  'star-maa': 'Entertainment',
+  'star-maa-telugu': 'Entertainment',
+  'star-maa-hd': 'Entertainment',
+  'star-maa-movies': 'Movies',
+  'star-maa-movies-hd': 'Movies',
+  'sun-gemini': 'Entertainment',
+  'sun-gemini-tv': 'Entertainment',
+  'gemini-tv': 'Entertainment',
+  'zee-telugu': 'Entertainment',
+  'zee-telugu-hd': 'Entertainment',
+  'etv-telugu': 'Entertainment',
+  'tv9-telugu': 'News',
+  'v6-news': 'News',
+  'abn-andhra-jyothi': 'News',
+  'ntv-telugu': 'News',
+  'bhakti-tv': 'Devotional',
+  // Hindi
+  'aaj-tak': 'News',
+  'ndtv-india': 'News',
+  'star-plus': 'Entertainment',
+  'zee-tv': 'Entertainment',
+  'colors-tv': 'Entertainment',
+  'aastha-tv': 'Devotional',
+  // Tamil
+  'sun-tv': 'Entertainment',
+  'star-vijay': 'Entertainment',
+  'sun-news': 'News',
+  'thanthi-tv': 'News',
+  // Sports
+  'star-sports': 'Sports',
+  'sony-sports': 'Sports',
+  'redbull-tv': 'Sports',
+  // Movies
+  'cinema-hd': 'Movies',
+};
+
+/**
+ * Resolves a channel's primary category using canonical channel records and reliable metadata.
+ * Does not classify based solely on name if reliable category metadata already exists.
+ * If a channel genuinely has no category and cannot be determined reliably, returns 'Uncategorized'.
+ */
+export function getChannelCanonicalCategory(
+  channel: Channel,
+  canonicalCatalog?: Channel[]
+): string {
+  const hasExplicitGroup = Boolean(channel.group && channel.group.trim().length > 0);
+  const rawGroup = (channel.group || '').trim();
+  const rawGroupLower = rawGroup.toLowerCase();
+
+  // 1. If channel already has reliable specific category metadata (not General/Uncategorized/Other), use it
+  if (hasExplicitGroup && rawGroupLower !== 'general' && rawGroupLower !== 'uncategorized' && rawGroupLower !== 'other') {
+    return normalizeCategoryName(rawGroup);
+  }
+
+  // If channel has categories array with a specific category
+  if (channel.categories && channel.categories.length > 0) {
+    const firstCat = channel.categories[0].trim();
+    const firstCatLower = firstCat.toLowerCase();
+    if (firstCatLower && firstCatLower !== 'general' && firstCatLower !== 'uncategorized' && firstCatLower !== 'other') {
+      return normalizeCategoryName(firstCat);
+    }
+  }
+
+  // 2. The category is 'General' or missing. Check canonical channel records in catalog/curated channels
+  if (canonicalCatalog && canonicalCatalog.length > 0) {
+    const canonicalMatch = canonicalCatalog.find((c) => {
+      if (c.id === channel.id) return true;
+      if (channel.tvgId && c.tvgId && c.tvgId.toLowerCase() === channel.tvgId.toLowerCase()) return true;
+      if (c.name.toLowerCase() === channel.name.toLowerCase()) return true;
+      // Match well-known broadcaster in canonical catalog
+      const cName = c.name.toLowerCase();
+      const chName = channel.name.toLowerCase();
+      if (
+        (cName.includes('gemini') && chName.includes('gemini')) ||
+        (cName.includes('star maa') && chName.includes('star maa')) ||
+        (cName.includes('zee telugu') && chName.includes('zee telugu'))
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    if (canonicalMatch) {
+      const canonGroup = (canonicalMatch.group || '').trim().toLowerCase();
+      if (canonGroup && canonGroup !== 'general' && canonGroup !== 'uncategorized') {
+        return normalizeCategoryName(canonicalMatch.group);
+      }
+      if (canonicalMatch.categories && canonicalMatch.categories.length > 0) {
+        const cat = canonicalMatch.categories[0].trim().toLowerCase();
+        if (cat && cat !== 'general' && cat !== 'uncategorized') {
+          return normalizeCategoryName(canonicalMatch.categories[0]);
+        }
+      }
+    }
+  }
+
+  // 3. Check reliable verified channel classifications by ID (e.g. sun-gemini / star-maa / zee-telugu)
+  const idNormalized = (channel.id || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+  for (const [key, category] of Object.entries(VERIFIED_CHANNEL_CLASSIFICATIONS)) {
+    if (idNormalized === key || idNormalized.startsWith(key)) {
+      return category;
+    }
+  }
+
+  // Match by tvgId identifier if present
+  if (channel.tvgId) {
+    const tvgNormalized = channel.tvgId.toLowerCase();
+    if (tvgNormalized.includes('gemini') || tvgNormalized.includes('sun')) {
+      return 'Entertainment';
+    }
+    if (tvgNormalized.includes('starmaa') || tvgNormalized.includes('star-maa')) {
+      if (tvgNormalized.includes('movie')) return 'Movies';
+      return 'Entertainment';
+    }
+    if (tvgNormalized.includes('zeetelugu')) {
+      return 'Entertainment';
+    }
+  }
+
+  // 4. If actual category cannot be determined reliably:
+  if (hasExplicitGroup && rawGroupLower === 'general') {
+    return 'General';
+  }
+
+  // If genuinely has no category metadata
+  return 'Uncategorized';
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  count: number;
+  channels: Channel[];
+}
+
+/**
+ * Groups a list of channels (such as My List saved channels) by their primary content category.
+ * - Channels within each category are sorted alphabetically by display name.
+ * - Sections are ordered consistently: Entertainment, Movies, Sports, News, Music, Devotional, Kids, ... General, Uncategorized.
+ * - Empty category sections are omitted.
+ * - Channels are never duplicated within the same section.
+ */
+export function groupChannelsByCategory(
+  channels: Channel[],
+  canonicalCatalog?: Channel[]
+): CategoryGroup[] {
+  if (!channels || channels.length === 0) return [];
+
+  const groupsMap = new Map<string, Channel[]>();
+
+  for (const channel of channels) {
+    const category = getChannelCanonicalCategory(channel, canonicalCatalog);
+    if (!groupsMap.has(category)) {
+      groupsMap.set(category, []);
+    }
+    const groupChannels = groupsMap.get(category)!;
+    if (!groupChannels.some((c) => c.id === channel.id)) {
+      groupChannels.push(channel);
+    }
+  }
+
+  const result: CategoryGroup[] = [];
+
+  for (const [categoryName, chList] of groupsMap.entries()) {
+    if (chList.length === 0) continue;
+
+    // Sort channels alphabetically by display name within each category
+    const sortedChannels = [...chList].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })
+    );
+
+    result.push({
+      id: categoryName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      name: categoryName,
+      count: sortedChannels.length,
+      channels: sortedChannels,
+    });
+  }
+
+  // Sort groups in consistent canonical order
+  result.sort((a, b) => {
+    const aId = a.name.toLowerCase();
+    const bId = b.name.toLowerCase();
+
+    const aIdx = MY_LIST_CATEGORY_ORDER.indexOf(aId);
+    const bIdx = MY_LIST_CATEGORY_ORDER.indexOf(bId);
+
+    // If both are in priority list
+    if (aIdx !== -1 && bIdx !== -1) {
+      return aIdx - bIdx;
+    }
+    // If a is in priority list
+    if (aIdx !== -1) {
+      // General and Uncategorized should come after custom categories
+      if (aId === 'general' || aId === 'uncategorized') {
+        return 1;
+      }
+      return -1;
+    }
+    // If b is in priority list
+    if (bIdx !== -1) {
+      if (bId === 'general' || bId === 'uncategorized') {
+        return -1;
+      }
+      return 1;
+    }
+    // Both are custom categories: sort alphabetically
+    return a.name.localeCompare(b.name);
+  });
+
+  return result;
+}
+

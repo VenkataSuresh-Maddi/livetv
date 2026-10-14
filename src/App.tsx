@@ -23,6 +23,7 @@ import {
   channelMatchesLanguage,
   getRecommendedChannelsForLanguages,
   getNativeLanguageName,
+  groupChannelsByCategory,
 } from './services/iptv';
 import { useHlsPlayer } from './hooks/useHlsPlayer';
 import { useTvNavigation } from './hooks/useTvNavigation';
@@ -315,6 +316,11 @@ export default function App() {
     const favSet = new Set(preferences.favorites);
     return channels.filter((c) => favSet.has(c.id));
   }, [preferences.favorites, channels]);
+
+  // Group My List channels dynamically by canonical category
+  const groupedFavoriteCategories = useMemo(() => {
+    return groupChannelsByCategory(favoriteChannels, channels);
+  }, [favoriteChannels, channels]);
 
   // Dynamic genre channel lists based strictly on channel metadata
   const newsChannels = useMemo(() => {
@@ -867,43 +873,99 @@ export default function App() {
             </div>
 
             {favoriteChannels.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {favoriteChannels.map((channel) => (
-                  <button
-                    key={channel.id}
-                    type="button"
-                    onClick={() => handleSelectChannel(channel)}
-                    className="p-4 rounded-2xl bg-[#181818] hover:bg-[#222222] border border-zinc-800 hover:border-zinc-700 text-left flex flex-col justify-between gap-3 group transition-all hover:scale-[1.02]"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      {channel.logo ? (
-                        <img
-                          src={channel.logo}
-                          alt={channel.name}
-                          className="w-12 h-12 object-contain p-1 rounded-xl bg-zinc-950 border border-zinc-800"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-zinc-800 text-red-500 font-bold flex items-center justify-center">
-                          {channel.name.slice(0, 2)}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFavorite(channel.id);
-                        }}
-                        className="text-amber-400 p-1 hover:scale-110 transition-transform"
-                      >
-                        <Star className="w-5 h-5 fill-amber-400" />
-                      </button>
+              <div className="space-y-8">
+                {groupedFavoriteCategories.map((group) => (
+                  <section key={group.id} className="space-y-3">
+                    {/* Category Header with Icon and Count */}
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-red-500">
+                          {group.id === 'entertainment' ? (
+                            <Tv className="w-5 h-5" />
+                          ) : group.id === 'movies' ? (
+                            <Film className="w-5 h-5" />
+                          ) : group.id === 'sports' ? (
+                            <Trophy className="w-5 h-5" />
+                          ) : group.id === 'news' ? (
+                            <Newspaper className="w-5 h-5" />
+                          ) : group.id === 'kids' ? (
+                            <Smile className="w-5 h-5" />
+                          ) : group.id === 'devotional' ? (
+                            <Heart className="w-5 h-5" />
+                          ) : group.id === 'music' ? (
+                            <Music className="w-5 h-5" />
+                          ) : group.id === 'documentary' ? (
+                            <Compass className="w-5 h-5" />
+                          ) : (
+                            <Folder className="w-5 h-5" />
+                          )}
+                        </span>
+                        <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                          <span>{group.name}</span>
+                          <span className="text-xs font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">
+                            {group.count}
+                          </span>
+                        </h2>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="font-bold text-white group-hover:text-red-400 line-clamp-1">{channel.name}</h3>
-                      <p className="text-xs text-zinc-400 mt-0.5">{channel.group || 'Live TV'}</p>
+                    {/* Responsive Channels Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {group.channels.map((channel) => (
+                        <button
+                          key={channel.id}
+                          type="button"
+                          onClick={() => handleSelectChannel(channel)}
+                          className="p-4 rounded-2xl bg-[#181818] hover:bg-[#222222] border border-zinc-800 hover:border-zinc-700 text-left flex flex-col justify-between gap-3 group transition-all hover:scale-[1.02] cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            {channel.logo ? (
+                              <img
+                                src={channel.logo}
+                                alt={channel.name}
+                                className="w-12 h-12 object-contain p-1 rounded-xl bg-zinc-950 border border-zinc-800"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 text-red-500 font-bold flex items-center justify-center">
+                                {channel.name.slice(0, 2)}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              {channel.resolution && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                                  {channel.resolution}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleFavorite(channel.id);
+                                }}
+                                className="text-amber-400 p-1 hover:scale-110 transition-transform"
+                                title="Remove from My List"
+                              >
+                                <Star className="w-5 h-5 fill-amber-400" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h3 className="font-bold text-white group-hover:text-red-400 line-clamp-1">{channel.name}</h3>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-zinc-400">
+                              <span>{channel.group || group.name}</span>
+                              {channel.language && (
+                                <>
+                                  <span>•</span>
+                                  <span>{channel.language}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </button>
+                  </section>
                 ))}
               </div>
             ) : (
@@ -1009,6 +1071,7 @@ export default function App() {
         isOpen={!preferences.hasCompletedLanguageOnboarding || isLanguageModalOpen}
         isOnboarding={!preferences.hasCompletedLanguageOnboarding}
         languages={languages}
+        channels={channels}
         initialSelectedLanguages={preferences.preferredLanguages || []}
         onSave={(selected) => {
           updatePreferences({
@@ -1019,6 +1082,12 @@ export default function App() {
         }}
         onSkip={() => {
           updatePreferences({ hasCompletedLanguageOnboarding: true });
+          setIsLanguageModalOpen(false);
+        }}
+        onResetPreferences={() => {
+          updatePreferences({
+            preferredLanguages: [],
+          });
           setIsLanguageModalOpen(false);
         }}
         onClose={() => setIsLanguageModalOpen(false)}
