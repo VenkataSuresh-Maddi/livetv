@@ -12,6 +12,8 @@ interface NetflixRowProps {
   onSelectChannel: (channel: Channel) => void;
   onToggleFavorite: (channelId: string) => void;
   icon?: React.ReactNode;
+  onViewAll?: () => void;
+  viewAllText?: string;
 }
 
 export const NetflixRow: React.FC<NetflixRowProps> = ({
@@ -23,6 +25,8 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
   onSelectChannel,
   onToggleFavorite,
   icon,
+  onViewAll,
+  viewAllText,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,24 +59,36 @@ export const NetflixRow: React.FC<NetflixRowProps> = ({
           </div>
         </div>
 
-        {/* Desktop Quick Scroll Controls */}
-        <div className="hidden sm:flex items-center gap-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={() => scroll('left')}
-            className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:scale-105 transition-all shadow-md"
-            title="Scroll left"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => scroll('right')}
-            className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:scale-105 transition-all shadow-md"
-            title="Scroll right"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        {/* Action Controls & Scroll Buttons */}
+        <div className="flex items-center gap-2">
+          {onViewAll && (
+            <button
+              type="button"
+              onClick={onViewAll}
+              className="text-xs font-bold text-red-500 hover:text-red-400 bg-red-950/40 hover:bg-red-900/50 px-2.5 py-1 rounded-lg border border-red-800/40 transition-colors"
+            >
+              {viewAllText || 'Browse all'}
+            </button>
+          )}
+
+          <div className="hidden sm:flex items-center gap-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => scroll('left')}
+              className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:scale-105 transition-all shadow-md"
+              title="Scroll left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scroll('right')}
+              className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 hover:scale-105 transition-all shadow-md"
+              title="Scroll right"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

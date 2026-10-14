@@ -10,6 +10,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   favorites: [],
   recentChannels: [],
   lastWatchedChannelId: null,
+  channelViews: {},
   selectedCategory: 'all',
   selectedCountry: 'all',
   selectedLanguage: 'all',
@@ -23,7 +24,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   preferredQuality: 'auto',
   deviceModeOverride: 'auto',
   virtualRemoteVisible: false,
-  activePlaylistUrl: 'https://iptv-org.github.io/iptv/index.m3u',
+  activePlaylistUrl: 'https://iptv-org.github.io/api',
   lastCatalogueUpdate: null,
 };
 

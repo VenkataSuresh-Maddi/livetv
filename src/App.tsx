@@ -22,6 +22,8 @@ import {
   extractLanguages,
   channelMatchesLanguage,
   getRecommendedChannelsForLanguages,
+  rankChannelsForLanguage,
+  rankCategories,
   getNativeLanguageName,
   groupChannelsByCategory,
 } from './services/iptv';
@@ -172,8 +174,8 @@ export default function App() {
           });
         }
 
-        // If cached catalogue is small (old 1,515 cap) and active playlist is full index, auto-refresh to get all 11,000+
-        if (cached.channels.length < 5000 && preferences.activePlaylistUrl.includes('index.m3u')) {
+        // If cached catalogue is small, auto-refresh to load enriched IPTV-org API catalog
+        if (cached.channels.length < 5000) {
           refreshChannels();
           return;
         }
@@ -202,10 +204,15 @@ export default function App() {
   const countries = useMemo(() => extractCountries(channels), [channels]);
   const languages = useMemo(() => extractLanguages(channels), [channels]);
 
-  // Recommended channels personalized for user's preferred languages
+  // Recommended channels personalized for user's preferred languages (ranked by viewing history & quality)
   const recommendedLanguageChannels = useMemo(() => {
-    return getRecommendedChannelsForLanguages(channels, preferences.preferredLanguages, 30);
-  }, [channels, preferences.preferredLanguages]);
+    return getRecommendedChannelsForLanguages(
+      channels,
+      preferences.preferredLanguages,
+      30,
+      { channelViews: preferences.channelViews }
+    );
+  }, [channels, preferences.preferredLanguages, preferences.channelViews]);
 
   // Safe back from player handler: exits fullscreen if open and returns to home view
   const handleBackFromPlayer = useCallback(() => {
@@ -225,12 +232,25 @@ export default function App() {
     } catch (_) {}
   }, []);
 
-  // Channel selection with safe browser history integration
+  // Channel selection with safe browser history integration and genuine usage tracking
   const handleSelectChannel = useCallback(
     (channel: Channel) => {
       setSelectedChannel(channel);
       setActiveTab('player');
-      updatePreferences({ lastWatchedChannelId: channel.id });
+      setPreferences((prev) => {
+        const currentViews = prev.channelViews || {};
+        const updatedViews = {
+          ...currentViews,
+          [channel.id]: (currentViews[channel.id] || 0) + 1,
+        };
+        const next = {
+          ...prev,
+          lastWatchedChannelId: channel.id,
+          channelViews: updatedViews,
+        };
+        savePreferences(next);
+        return next;
+      });
       try {
         if (window.location.hash !== '#player') {
           window.history.pushState({ tab: 'player', channelId: channel.id }, '', '#player');
@@ -238,7 +258,7 @@ export default function App() {
       } catch (_) {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
-    [updatePreferences]
+    []
   );
 
   // Browser back navigation sync
@@ -321,6 +341,55 @@ export default function App() {
   const groupedFavoriteCategories = useMemo(() => {
     return groupChannelsByCategory(favoriteChannels, channels);
   }, [favoriteChannels, channels]);
+
+  // Category Ranking System based on measurable signals in priority order:
+  // 1. Actual viewing counts / play events
+  // 2. Distinct channels with valid stream URLs
+  // 3. Distinct stream sources
+  const rankedCategoriesResult = useMemo(() => {
+    return rankCategories(channels, {
+      channelViews: preferences.channelViews,
+      recentChannels: preferences.recentChannels,
+    });
+  }, [channels, preferences.channelViews, preferences.recentChannels]);
+
+  // Top ranked categories for primary category carousels
+  const topRankedCategories = useMemo(() => {
+    return rankedCategoriesResult.categories.slice(0, 3);
+  }, [rankedCategoriesResult]);
+
+  // Icon resolver for categories
+  const getCategoryIcon = useCallback((id: string) => {
+    const lower = id.toLowerCase();
+    if (lower === 'news') return <Newspaper className="w-5 h-5 text-red-500" />;
+    if (lower === 'sports') return <Trophy className="w-5 h-5 text-red-500" />;
+    if (lower === 'movies') return <Film className="w-5 h-5 text-red-500" />;
+    if (lower === 'entertainment' || lower === 'series') return <Tv className="w-5 h-5 text-red-500" />;
+    if (lower === 'music') return <Music className="w-5 h-5 text-red-500" />;
+    if (lower === 'kids' || lower === 'animation') return <Smile className="w-5 h-5 text-red-500" />;
+    if (lower === 'devotional' || lower === 'religious') return <Heart className="w-5 h-5 text-red-500" />;
+    if (lower === 'documentary') return <Compass className="w-5 h-5 text-red-500" />;
+    return <Layers className="w-5 h-5 text-red-500" />;
+  }, []);
+
+  // Languages to feature in language discovery section (distinct from user's preferred languages to prevent duplication)
+  const featuredDiscoveryLanguages = useMemo(() => {
+    const preferredSet = new Set(
+      (preferences.preferredLanguages || []).map((l) => l.toLowerCase())
+    );
+    const candidates = ['Telugu', 'Tamil', 'Hindi', 'English', 'Spanish', 'Kannada', 'Malayalam', 'Bengali'];
+    return candidates
+      .filter((lang) => !preferredSet.has(lang.toLowerCase()))
+      .map((lang) => ({
+        lang,
+        native: getNativeLanguageName(lang),
+        channels: rankChannelsForLanguage(channels, lang, {
+          channelViews: preferences.channelViews,
+        }),
+      }))
+      .filter((item) => item.channels.length > 0)
+      .slice(0, 3);
+  }, [channels, preferences.preferredLanguages, preferences.channelViews]);
 
   // Dynamic genre channel lists based strictly on channel metadata
   const newsChannels = useMemo(() => {
@@ -471,6 +540,21 @@ export default function App() {
                   totalChannels={channels.length}
                 />
 
+                {/* SECTION 1: Continue Watching (Resume recent streams) */}
+                {recentChannels.length > 0 && (
+                  <NetflixRow
+                    title="Continue Watching"
+                    subtitle="Resume recently streamed live channels"
+                    channels={recentChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Clock className="w-5 h-5 text-red-500" />}
+                  />
+                )}
+
+                {/* SECTION 2: User's Preferred Languages */}
                 {/* Language Personalization Bar */}
                 <div className="bg-gradient-to-r from-zinc-900 via-[#181818] to-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
                   <div className="flex items-center gap-3">
@@ -542,56 +626,140 @@ export default function App() {
                       />
                     )}
 
-                    {/* Dedicated Row per selected language */}
+                    {/* Dedicated Row per selected language (ranked by view history & quality) */}
                     {preferences.preferredLanguages.map((lang) => {
-                      const langChannels = channels.filter((c) => channelMatchesLanguage(c, lang));
+                      const langChannels = rankChannelsForLanguage(channels, lang, {
+                        channelViews: preferences.channelViews,
+                      });
                       if (langChannels.length === 0) return null;
                       const native = getNativeLanguageName(lang);
                       return (
                         <NetflixRow
                           key={lang}
-                          title={`${lang} Live TV`}
-                          subtitle={native ? `${native} • Live broadcasts, entertainment & regional news` : `Live broadcasts in ${lang}`}
+                          title={`${lang} Channels`}
+                          subtitle={native ? `${native} • ${langChannels.length} channels • Live broadcasts & entertainment` : `${langChannels.length} live channels in ${lang}`}
                           channels={langChannels}
                           selectedChannel={selectedChannel}
                           favorites={preferences.favorites}
                           onSelectChannel={handleSelectChannel}
                           onToggleFavorite={handleToggleFavorite}
                           icon={<Globe className="w-5 h-5 text-red-500" />}
+                          onViewAll={() => {
+                            updatePreferences({ selectedLanguage: lang });
+                            window.scrollTo({ top: 900, behavior: 'smooth' });
+                          }}
+                          viewAllText={`Browse all ${lang}`}
                         />
                       );
                     })}
                   </>
                 )}
 
-                {/* Continue Watching / Recents Carousel */}
-                {recentChannels.length > 0 && (
-                  <NetflixRow
-                    title="Continue Watching"
-                    subtitle="Resume recently streamed live channels"
-                    channels={recentChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Clock className="w-5 h-5 text-red-500" />}
-                  />
+                {/* SECTION 3: Best-Supported Popular Categories or Explore Categories */}
+                <div className="space-y-4 pt-4">
+                  <div className="px-4 sm:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+                          <Layers className="w-6 h-6 text-red-600" />
+                          <span>{rankedCategoriesResult.label}</span>
+                        </h2>
+                        {rankedCategoriesResult.hasGenuineUsageData ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950/70 border border-emerald-700/50 text-emerald-400">
+                            Based on Play History
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            Ranked by Available Streams
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        {rankedCategoriesResult.description}
+                      </p>
+                    </div>
+
+                    {/* Quick Category Badges */}
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                      {rankedCategoriesResult.categories.slice(0, 6).map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            updatePreferences({ selectedCategory: cat.id });
+                            window.scrollTo({ top: 950, behavior: 'smooth' });
+                          }}
+                          className="shrink-0 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <span>{cat.name}</span>
+                          <span className="text-[10px] font-mono text-zinc-500">
+                            {cat.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Carousels for top ranked categories */}
+                  {topRankedCategories.map((cat) => {
+                    const catChannels = channels.filter((c) => channelMatchesCategory(c, cat.name));
+                    if (catChannels.length === 0) return null;
+                    return (
+                      <NetflixRow
+                        key={cat.id}
+                        title={cat.name}
+                        subtitle={`${cat.count} distinct channels • ${cat.streamCount} verified streams`}
+                        channels={catChannels}
+                        selectedChannel={selectedChannel}
+                        favorites={preferences.favorites}
+                        onSelectChannel={handleSelectChannel}
+                        onToggleFavorite={handleToggleFavorite}
+                        icon={getCategoryIcon(cat.id)}
+                        onViewAll={() => {
+                          updatePreferences({ selectedCategory: cat.id });
+                          window.scrollTo({ top: 950, behavior: 'smooth' });
+                        }}
+                        viewAllText={`Explore ${cat.name}`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* SECTION 4: Language-Based Channel Sections (Discovery of other languages) */}
+                {featuredDiscoveryLanguages.length > 0 && (
+                  <div className="space-y-4 pt-4">
+                    <div className="px-4 sm:px-8 border-b border-zinc-800/80 pb-3">
+                      <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+                        <Globe className="w-6 h-6 text-red-600" />
+                        <span>Explore Channels by Language</span>
+                      </h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Broadcast channels classified by native language using official feeds metadata
+                      </p>
+                    </div>
+
+                    {featuredDiscoveryLanguages.map(({ lang, channels: langChannels, native }) => (
+                      <NetflixRow
+                        key={lang}
+                        title={`${lang} Channels`}
+                        subtitle={native ? `${native} • ${langChannels.length} live broadcast channels` : `${langChannels.length} live broadcast channels in ${lang}`}
+                        channels={langChannels}
+                        selectedChannel={selectedChannel}
+                        favorites={preferences.favorites}
+                        onSelectChannel={handleSelectChannel}
+                        onToggleFavorite={handleToggleFavorite}
+                        icon={<Globe className="w-5 h-5 text-red-500" />}
+                        onViewAll={() => {
+                          updatePreferences({ selectedLanguage: lang });
+                          window.scrollTo({ top: 950, behavior: 'smooth' });
+                        }}
+                        viewAllText={`All ${lang}`}
+                      />
+                    ))}
+                  </div>
                 )}
 
-                {/* My List / Favorites Carousel */}
-                {favoriteChannels.length > 0 && (
-                  <NetflixRow
-                    title="My List"
-                    subtitle="Your bookmarked favorite channels"
-                    channels={favoriteChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Star className="w-5 h-5 text-amber-400 fill-amber-400" />}
-                  />
-                )}
-
+                {/* SECTION 5: Other Available Categories & Curated Verified Broadcasters */}
                 {/* Trending & Curated Verified Broadcasters */}
                 <NetflixRow
                   title="Trending Live Broadcasters"
@@ -604,36 +772,8 @@ export default function App() {
                   icon={<Radio className="w-5 h-5 text-red-500 animate-pulse" />}
                 />
 
-                {/* Live News */}
-                {newsChannels.length > 0 && (
-                  <NetflixRow
-                    title="Live News & World Events"
-                    subtitle="Breaking news and 24-hour journalism"
-                    channels={newsChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Newspaper className="w-5 h-5 text-red-500" />}
-                  />
-                )}
-
-                {/* Sports */}
-                {sportsChannels.length > 0 && (
-                  <NetflixRow
-                    title="Sports & Live Action"
-                    subtitle="Racing, football, extreme sports & athletics"
-                    channels={sportsChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Trophy className="w-5 h-5 text-red-500" />}
-                  />
-                )}
-
                 {/* Movies & Cinema */}
-                {movieChannels.length > 0 && (
+                {!topRankedCategories.some((c) => c.id === 'movies') && movieChannels.length > 0 && (
                   <NetflixRow
                     title="Movies & Cinema"
                     subtitle="Feature films, classic movies & blockbusters"
@@ -643,11 +783,51 @@ export default function App() {
                     onSelectChannel={handleSelectChannel}
                     onToggleFavorite={handleToggleFavorite}
                     icon={<Film className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'movies' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
+                  />
+                )}
+
+                {/* Sports */}
+                {!topRankedCategories.some((c) => c.id === 'sports') && sportsChannels.length > 0 && (
+                  <NetflixRow
+                    title="Sports & Live Action"
+                    subtitle="Racing, football, extreme sports & athletics"
+                    channels={sportsChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Trophy className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'sports' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
+                  />
+                )}
+
+                {/* News */}
+                {!topRankedCategories.some((c) => c.id === 'news') && newsChannels.length > 0 && (
+                  <NetflixRow
+                    title="Live News & World Events"
+                    subtitle="Breaking news and 24-hour journalism"
+                    channels={newsChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Newspaper className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'news' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
                   />
                 )}
 
                 {/* Entertainment */}
-                {entertainmentChannels.length > 0 && (
+                {!topRankedCategories.some((c) => c.id === 'entertainment') && entertainmentChannels.length > 0 && (
                   <NetflixRow
                     title="Entertainment & Shows"
                     subtitle="TV series, comedy, drama & lifestyle"
@@ -657,34 +837,10 @@ export default function App() {
                     onSelectChannel={handleSelectChannel}
                     onToggleFavorite={handleToggleFavorite}
                     icon={<Tv className="w-5 h-5 text-red-500" />}
-                  />
-                )}
-
-                {/* Science & Documentaries */}
-                {documentaryChannels.length > 0 && (
-                  <NetflixRow
-                    title="Science & Documentaries"
-                    subtitle="Nature, space exploration & history"
-                    channels={documentaryChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Compass className="w-5 h-5 text-red-500" />}
-                  />
-                )}
-
-                {/* Music */}
-                {musicChannels.length > 0 && (
-                  <NetflixRow
-                    title="Music & Live Concerts"
-                    subtitle="Music videos, pop, rock & festivals"
-                    channels={musicChannels}
-                    selectedChannel={selectedChannel}
-                    favorites={preferences.favorites}
-                    onSelectChannel={handleSelectChannel}
-                    onToggleFavorite={handleToggleFavorite}
-                    icon={<Music className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'entertainment' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
                   />
                 )}
 
@@ -699,6 +855,10 @@ export default function App() {
                     onSelectChannel={handleSelectChannel}
                     onToggleFavorite={handleToggleFavorite}
                     icon={<Smile className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'kids' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
                   />
                 )}
 
@@ -713,6 +873,62 @@ export default function App() {
                     onSelectChannel={handleSelectChannel}
                     onToggleFavorite={handleToggleFavorite}
                     icon={<Heart className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'devotional' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
+                  />
+                )}
+
+                {/* Science & Documentaries */}
+                {documentaryChannels.length > 0 && (
+                  <NetflixRow
+                    title="Science & Documentaries"
+                    subtitle="Nature, space exploration & history"
+                    channels={documentaryChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Compass className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'documentary' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
+                  />
+                )}
+
+                {/* Music */}
+                {musicChannels.length > 0 && (
+                  <NetflixRow
+                    title="Music & Live Concerts"
+                    subtitle="Music videos, pop, rock & festivals"
+                    channels={musicChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Music className="w-5 h-5 text-red-500" />}
+                    onViewAll={() => {
+                      updatePreferences({ selectedCategory: 'music' });
+                      window.scrollTo({ top: 950, behavior: 'smooth' });
+                    }}
+                  />
+                )}
+
+                {/* My List / Favorites Carousel */}
+                {favoriteChannels.length > 0 && (
+                  <NetflixRow
+                    title="My List"
+                    subtitle="Your bookmarked favorite channels"
+                    channels={favoriteChannels}
+                    selectedChannel={selectedChannel}
+                    favorites={preferences.favorites}
+                    onSelectChannel={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                    icon={<Star className="w-5 h-5 text-amber-400 fill-amber-400" />}
+                    onViewAll={() => setActiveTab('favorites')}
+                    viewAllText="View My List"
                   />
                 )}
 

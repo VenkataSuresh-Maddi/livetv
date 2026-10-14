@@ -1,4 +1,4 @@
-import { Channel, Category } from '../types';
+import { Channel, Category, RankedCategory, CategoryRankingResult } from '../types';
 
 export interface CategoryDefinition {
   id: string;
@@ -236,6 +236,177 @@ export function extractCategories(channels: Channel[]): Category[] {
     { id: 'all', name: 'All Categories', count: channels.length },
     ...sortedList,
   ];
+}
+
+/**
+ * Dynamically ranks categories based on available measurable signals in priority order:
+ * 1. Actual channel viewing counts or play events (if collected).
+ * 2. Aggregated usage statistics (if available).
+ * 3. Number of distinct channels in each category that have valid stream URLs.
+ * 4. Number of distinct stream sources per category (as secondary signal).
+ *
+ * Requirements:
+ * - Deterministic sorting and stable tie-breakers.
+ * - Prevents duplicate channels from inflating category counts (using Set of channel IDs).
+ * - Excludes empty categories.
+ * - Labels as "Popular Categories" ONLY when supported by genuine usage data.
+ *   Otherwise labels as "Explore Categories" or "Most Channels".
+ */
+export function rankCategories(
+  channels: Channel[],
+  usageStats?: {
+    channelViews?: Record<string, number>;
+    recentChannels?: Array<{ channelId: string; timestamp: number }>;
+  }
+): CategoryRankingResult {
+  const categoryChannelSets = new Map<string, Set<string>>();
+  const categoryStreamSets = new Map<string, Set<string>>();
+  const categoryViewCounts = new Map<string, number>();
+  const categoryNameMap = new Map<string, string>();
+
+  // Aggregate user views if available
+  const viewsByChannelId: Record<string, number> = { ...(usageStats?.channelViews || {}) };
+  if (usageStats?.recentChannels) {
+    for (const recent of usageStats.recentChannels) {
+      viewsByChannelId[recent.channelId] = (viewsByChannelId[recent.channelId] || 0) + 1;
+    }
+  }
+
+  let totalGenuineViews = 0;
+
+  for (const ch of channels) {
+    // Check if channel has a valid stream URL
+    if (!ch.url || (!ch.url.startsWith('http://') && !ch.url.startsWith('https://'))) {
+      continue;
+    }
+
+    const cats = extractChannelCategories(ch);
+    const chViews = viewsByChannelId[ch.id] || ch.viewCount || 0;
+    if (chViews > 0) {
+      totalGenuineViews += chViews;
+    }
+
+    // Collect all unique stream URLs for this channel
+    const chStreamUrls = new Set<string>();
+    chStreamUrls.add(ch.url);
+    if (ch.streamVariants) {
+      for (const v of ch.streamVariants) {
+        if (v && (v.startsWith('http://') || v.startsWith('https://'))) chStreamUrls.add(v);
+      }
+    }
+    if (ch.streams) {
+      for (const s of ch.streams) {
+        if (s.url && (s.url.startsWith('http://') || s.url.startsWith('https://'))) chStreamUrls.add(s.url);
+      }
+    }
+
+    for (const catName of cats) {
+      const catId = catName.toLowerCase();
+      categoryNameMap.set(catId, catName);
+
+      if (!categoryChannelSets.has(catId)) {
+        categoryChannelSets.set(catId, new Set<string>());
+        categoryStreamSets.set(catId, new Set<string>());
+        categoryViewCounts.set(catId, 0);
+      }
+
+      // Add channel ID (ensures distinct channel count, preventing duplicate inflation)
+      categoryChannelSets.get(catId)!.add(ch.id);
+
+      // Add stream URLs
+      const streamSet = categoryStreamSets.get(catId)!;
+      for (const sUrl of chStreamUrls) {
+        streamSet.add(sUrl);
+      }
+
+      // Add view counts
+      if (chViews > 0) {
+        categoryViewCounts.set(catId, (categoryViewCounts.get(catId) || 0) + chViews);
+      }
+    }
+  }
+
+  const hasGenuineUsageData = totalGenuineViews > 0;
+  const rankingSource = hasGenuineUsageData ? 'user_views' : 'catalog_signals';
+  const label = hasGenuineUsageData ? 'Popular Categories' : 'Explore Categories';
+  const description = hasGenuineUsageData
+    ? 'Ranked by your actual viewing history and stream playback'
+    : 'Ranked by channel availability and live stream coverage';
+
+  // Canonical ordering preference used as a stable tie-breaker
+  const canonicalPriority = [
+    'entertainment',
+    'movies',
+    'sports',
+    'news',
+    'music',
+    'devotional',
+    'kids',
+    'documentary',
+    'lifestyle',
+    'general',
+  ];
+
+  const ranked: RankedCategory[] = [];
+
+  for (const [catId, chSet] of categoryChannelSets.entries()) {
+    // Exclude empty categories
+    if (chSet.size === 0) continue;
+
+    const distinctChannels = chSet.size;
+    const distinctStreams = categoryStreamSets.get(catId)?.size || distinctChannels;
+    const viewCount = categoryViewCounts.get(catId) || 0;
+    const displayName = categoryNameMap.get(catId) || catId;
+
+    // Deterministic score calculation
+    const score = hasGenuineUsageData
+      ? viewCount * 10000 + distinctChannels * 10 + distinctStreams * 0.1
+      : distinctChannels * 100 + distinctStreams;
+
+    ranked.push({
+      id: catId,
+      name: displayName,
+      count: distinctChannels,
+      streamCount: distinctStreams,
+      viewCount,
+      score,
+    });
+  }
+
+  // Deterministic sorting with stable tie-breakers
+  ranked.sort((a, b) => {
+    if (hasGenuineUsageData) {
+      // 1. Viewing counts / play events
+      if (b.viewCount !== a.viewCount) return b.viewCount - a.viewCount;
+      // 3. Distinct channels
+      if (b.count !== a.count) return b.count - a.count;
+      // 4. Distinct streams
+      if (b.streamCount !== a.streamCount) return b.streamCount - a.streamCount;
+      // Stable tie-breaker: Alphabetical
+      return a.name.localeCompare(b.name);
+    } else {
+      // 3. Distinct channels with valid stream URLs
+      if (b.count !== a.count) return b.count - a.count;
+      // 4. Distinct streams
+      if (b.streamCount !== a.streamCount) return b.streamCount - a.streamCount;
+      // Tie-breaker: Canonical priority
+      const aIdx = canonicalPriority.indexOf(a.id);
+      const bIdx = canonicalPriority.indexOf(b.id);
+      if (aIdx !== -1 && bIdx !== -1 && aIdx !== bIdx) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      // Stable tie-breaker: Alphabetical
+      return a.name.localeCompare(b.name);
+    }
+  });
+
+  return {
+    categories: ranked,
+    rankingSource,
+    label,
+    description,
+    hasGenuineUsageData,
+  };
 }
 
 /**

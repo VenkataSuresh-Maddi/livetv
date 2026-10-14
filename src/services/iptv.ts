@@ -1,10 +1,11 @@
-import { Channel, Category, Country, Language } from '../types';
+import { Channel, Category, Country, Language, RankedCategory, CategoryRankingResult } from '../types';
 import {
   normalizeCategoryName,
   extractChannelCategories,
   channelMatchesCategory,
   splitCategoryString,
   extractCategories,
+  rankCategories,
   getChannelCanonicalCategory,
   groupChannelsByCategory,
   CategoryGroup,
@@ -16,8 +17,15 @@ import {
   channelMatchesLanguage,
   extractLanguages,
   getRecommendedChannelsForLanguages,
+  rankChannelsForLanguage,
   CANONICAL_LANGUAGES,
 } from './languages';
+import {
+  loadIptvOrgCatalog,
+  combineIptvOrgMetadata,
+  fetchAllIptvOrgDatasets,
+  IPTV_ORG_ENDPOINTS,
+} from './iptvOrgApi';
 
 export {
   normalizeCategoryName,
@@ -25,6 +33,7 @@ export {
   channelMatchesCategory,
   splitCategoryString,
   extractCategories,
+  rankCategories,
   getChannelCanonicalCategory,
   groupChannelsByCategory,
   MY_LIST_CATEGORY_ORDER,
@@ -33,9 +42,14 @@ export {
   channelMatchesLanguage,
   extractLanguages,
   getRecommendedChannelsForLanguages,
+  rankChannelsForLanguage,
   CANONICAL_LANGUAGES,
+  loadIptvOrgCatalog,
+  combineIptvOrgMetadata,
+  fetchAllIptvOrgDatasets,
+  IPTV_ORG_ENDPOINTS,
 };
-export type { CategoryGroup };
+export type { CategoryGroup, RankedCategory, CategoryRankingResult };
 
 // Curated 24/7 high-reliability, public, legitimate live broadcast streams (tested & verified)
 export const CURATED_CHANNELS: Channel[] = [
@@ -721,6 +735,7 @@ export const COUNTRY_NAMES: Record<string, { name: string; flag: string }> = {
 };
 
 export const POPULAR_PLAYLIST_SOURCES = [
+  { id: 'iptv-org-api', name: 'Official IPTV-org API (Enhanced Metadata & Discovery)', url: 'https://iptv-org.github.io/api' },
   { id: 'iptv-org-main', name: 'IPTV-org Full Index (~11,000+ channels)', url: 'https://iptv-org.github.io/iptv/index.m3u' },
   { id: 'iptv-org-news', name: 'IPTV-org Global News (~1,000 channels)', url: 'https://iptv-org.github.io/iptv/categories/news.m3u' },
   { id: 'iptv-org-us', name: 'IPTV-org United States (~1,500 channels)', url: 'https://iptv-org.github.io/iptv/countries/us.m3u' },
@@ -847,6 +862,11 @@ export function parseM3U(m3uContent: string, maxChannels?: number): Channel[] {
 export async function fetchPlaylist(url: string): Promise<Channel[]> {
   if (url === 'curated' || !url) {
     return CURATED_CHANNELS;
+  }
+
+  // Official IPTV-org API dataset loading
+  if (url === 'https://iptv-org.github.io/api' || url.includes('/api') || url === 'iptv-org-api') {
+    return loadIptvOrgCatalog({ forceRefresh: true });
   }
 
   const timeoutMs = 25000;

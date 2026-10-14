@@ -76,7 +76,7 @@ export const CANONICAL_LANGUAGES: LanguageDefinition[] = [
     id: 'odia',
     name: 'Odia',
     nativeName: 'ଓଡ଼ିଆ',
-    aliases: ['ori', 'odi', 'or', 'odia', 'oriya'],
+    aliases: ['ori', 'odi', 'or', 'odia', 'oriya', 'oriya (macrolanguage)'],
     isRegionalIndian: true,
   },
   {
@@ -148,15 +148,20 @@ for (const lang of CANONICAL_LANGUAGES) {
 }
 
 /**
- * Normalizes any raw language string (from tvg-language, group, or channel title)
- * to a standardized Title Case name (e.g. 'tel' -> 'Telugu', 'hin' -> 'Hindi').
+ * Normalizes any raw language string (from feeds.json, ISO 639-3 code, or channel metadata)
+ * to a standardized Title Case name (e.g. 'tel' -> 'Telugu', 'hin' -> 'Hindi', 'ori' -> 'Odia').
+ * If missing, returns 'Unknown' rather than defaulting to English.
  */
 export function normalizeLanguageName(raw?: string): string {
-  if (!raw) return 'English';
+  if (!raw) return 'Unknown';
   const clean = raw.trim();
-  if (!clean) return 'English';
+  if (!clean || clean.toLowerCase() === 'undefined' || clean.toLowerCase() === 'null') {
+    return 'Unknown';
+  }
 
   const lower = clean.toLowerCase();
+  if (lower === 'unknown') return 'Unknown';
+
   const matched = ALIAS_TO_CANONICAL.get(lower);
   if (matched) return matched.name;
 
@@ -177,40 +182,51 @@ export function getNativeLanguageName(languageName: string): string | undefined 
 
 /**
  * Checks whether a channel matches a specific language.
- * Uses channel.language metadata primarily, with intelligent fallback inspection
- * of channel name or group keywords (e.g., 'Star Maa' or 'TV9 Telugu').
+ * Uses channel.languages array and channel.language metadata from feeds.json primarily.
+ * Correctly handles channels with multiple broadcast languages.
+ * Missing languages use carefully controlled fallbacks; unknown languages remain unclassified.
  */
 export function channelMatchesLanguage(channel: Channel, language: string): boolean {
-  if (!language || language === 'all') return true;
+  if (!language || language.toLowerCase() === 'all') return true;
 
   const targetNorm = normalizeLanguageName(language).toLowerCase();
-  const chanLang = normalizeLanguageName(channel.language).toLowerCase();
 
-  if (chanLang === targetNorm) {
-    return true;
+  // 1. Primary check: channel's broadcast languages list from feeds.json
+  if (channel.languages && Array.isArray(channel.languages) && channel.languages.length > 0) {
+    for (const lang of channel.languages) {
+      if (normalizeLanguageName(lang).toLowerCase() === targetNorm) {
+        return true;
+      }
+    }
   }
 
-  // Also check if channel.language direct substring matches
-  if (channel.language && channel.language.toLowerCase().includes(targetNorm)) {
-    return true;
+  // 2. Secondary check: channel's primary language
+  if (channel.language && channel.language !== 'Unknown') {
+    const chanLang = normalizeLanguageName(channel.language).toLowerCase();
+    if (chanLang === targetNorm) {
+      return true;
+    }
+    if (chanLang.includes(targetNorm)) {
+      return true;
+    }
   }
 
-  // Check group-title if it represents language
+  // 3. Fallback: Check group-title if it explicitly matches a language
   const groupLower = (channel.group || '').toLowerCase();
-  if (groupLower.includes(targetNorm)) {
+  if (groupLower === targetNorm || groupLower.includes(targetNorm)) {
     return true;
   }
 
-  // Check channel name keywords for language mentions
+  // 4. Last resort controlled heuristic: channel name keywords
   const nameLower = channel.name.toLowerCase();
   const targetDef = ALIAS_TO_CANONICAL.get(targetNorm);
   if (targetDef) {
-    // Check if channel name contains the language name as word boundary or direct mention
     const regex = new RegExp(`\\b${targetDef.name.toLowerCase()}\\b`, 'i');
     if (regex.test(nameLower)) {
       return true;
     }
-    // Check known regional channel brand patterns without explicit language word
+
+    // Known verified broadcaster patterns
     if (targetDef.id === 'telugu') {
       if (/\b(maa\s?tv|star\s?maa|gemini|etv|ntv|v6|tv9\s?telugu|zee\s?telugu|sakshi|abn|bhakti)\b/i.test(nameLower)) {
         return true;
@@ -255,25 +271,39 @@ export function channelMatchesLanguage(channel: Channel, language: string): bool
 
 /**
  * Extracts and counts languages from the loaded channels catalogue.
- * Guarantees all canonical requested languages appear in the list so users can select them,
- * and appends any extra discovered languages from the M3U metadata.
+ * Prevents counting a channel multiple times for a language even with multiple feeds/streams.
+ * Guarantees canonical languages are present and appends all discovered languages.
  */
 export function extractLanguages(channels: Channel[]): Language[] {
-  const counts = new Map<string, number>();
+  // Map: normalizedLanguageName -> Set of unique channel IDs
+  const channelSetsByLanguage = new Map<string, Set<string>>();
 
-  // Count channels per normalized language
   for (const ch of channels) {
-    // If ch has explicit language, use it
-    if (ch.language) {
+    const channelLangs = new Set<string>();
+
+    if (ch.languages && Array.isArray(ch.languages) && ch.languages.length > 0) {
+      for (const l of ch.languages) {
+        const norm = normalizeLanguageName(l);
+        if (norm && norm !== 'Unknown') channelLangs.add(norm);
+      }
+    } else if (ch.language && ch.language !== 'Unknown') {
       const norm = normalizeLanguageName(ch.language);
-      counts.set(norm, (counts.get(norm) || 0) + 1);
+      if (norm && norm !== 'Unknown') channelLangs.add(norm);
     }
 
-    // Also check if channel matches any of the canonical languages
+    // Check canonical languages if not already detected
     for (const canon of CANONICAL_LANGUAGES) {
-      if (normalizeLanguageName(ch.language) !== canon.name && channelMatchesLanguage(ch, canon.name)) {
-        counts.set(canon.name, (counts.get(canon.name) || 0) + 1);
+      if (!channelLangs.has(canon.name) && channelMatchesLanguage(ch, canon.name)) {
+        channelLangs.add(canon.name);
       }
+    }
+
+    // Add channel ID to each matched language set
+    for (const langName of channelLangs) {
+      if (!channelSetsByLanguage.has(langName)) {
+        channelSetsByLanguage.set(langName, new Set<string>());
+      }
+      channelSetsByLanguage.get(langName)!.add(ch.id);
     }
   }
 
@@ -282,22 +312,23 @@ export function extractLanguages(channels: Channel[]): Language[] {
 
   // 1. First add canonical languages in prioritized order
   for (const canon of CANONICAL_LANGUAGES) {
+    const count = channelSetsByLanguage.get(canon.name)?.size || 0;
     result.push({
       id: canon.id,
       name: canon.name,
       nativeName: canon.nativeName,
-      count: counts.get(canon.name) || 0,
+      count,
     });
     processed.add(canon.name.toLowerCase());
   }
 
-  // 2. Add extra discovered languages with channels
-  for (const [langName, count] of counts.entries()) {
-    if (!processed.has(langName.toLowerCase()) && count > 0) {
+  // 2. Add extra discovered languages with valid channels
+  for (const [langName, chSet] of channelSetsByLanguage.entries()) {
+    if (!processed.has(langName.toLowerCase()) && chSet.size > 0) {
       result.push({
         id: langName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         name: langName,
-        count,
+        count: chSet.size,
       });
       processed.add(langName.toLowerCase());
     }
@@ -307,12 +338,53 @@ export function extractLanguages(channels: Channel[]): Language[] {
 }
 
 /**
+ * Ranks channels within a language section:
+ * Prioritizes real viewing history, then stream resolution/quality, then verified status, then alphabetical.
+ */
+export function rankChannelsForLanguage(
+  channels: Channel[],
+  language: string,
+  usageStats?: { channelViews?: Record<string, number> }
+): Channel[] {
+  const matching = channels.filter((ch) => channelMatchesLanguage(ch, language));
+  const views = usageStats?.channelViews || {};
+
+  return matching.sort((a, b) => {
+    // 1. Real viewing history
+    const aViews = views[a.id] || a.viewCount || 0;
+    const bViews = views[b.id] || b.viewCount || 0;
+    if (bViews !== aViews) return bViews - aViews;
+
+    // 2. Verified channels
+    if (a.isVerified && !b.isVerified) return -1;
+    if (!a.isVerified && b.isVerified) return 1;
+
+    // 3. Resolution/quality (1080p > 720p > HD > others)
+    const getResScore = (res?: string) => {
+      if (!res) return 0;
+      const lower = res.toLowerCase();
+      if (lower.includes('4k') || lower.includes('2160p')) return 4;
+      if (lower.includes('1080p') || lower.includes('fhd')) return 3;
+      if (lower.includes('720p') || lower.includes('hd')) return 2;
+      if (lower.includes('576p') || lower.includes('480p')) return 1;
+      return 0;
+    };
+    const resDiff = getResScore(b.resolution) - getResScore(a.resolution);
+    if (resDiff !== 0) return resDiff;
+
+    // 4. Alphabetical tie-breaker
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/**
  * Returns prioritized channels matching the user's preferred languages.
  */
 export function getRecommendedChannelsForLanguages(
   channels: Channel[],
   preferredLanguages: string[],
-  limit = 24
+  limit = 24,
+  usageStats?: { channelViews?: Record<string, number> }
 ): Channel[] {
   if (!preferredLanguages || preferredLanguages.length === 0) {
     return channels.slice(0, limit);
@@ -322,5 +394,16 @@ export function getRecommendedChannelsForLanguages(
     preferredLanguages.some((lang) => channelMatchesLanguage(ch, lang))
   );
 
-  return matched.slice(0, limit);
+  const views = usageStats?.channelViews || {};
+
+  const sorted = matched.sort((a, b) => {
+    const aViews = views[a.id] || a.viewCount || 0;
+    const bViews = views[b.id] || b.viewCount || 0;
+    if (bViews !== aViews) return bViews - aViews;
+    if (a.isVerified && !b.isVerified) return -1;
+    if (!a.isVerified && b.isVerified) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return sorted.slice(0, limit);
 }

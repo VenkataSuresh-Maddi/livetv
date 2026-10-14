@@ -1,24 +1,53 @@
+export interface ChannelStreamSource {
+  url: string;
+  quality?: string | null;
+  title?: string | null;
+  feed?: string | null;
+  labels?: string[];
+  user_agent?: string | null;
+  referrer?: string | null;
+}
+
 export interface Channel {
   id: string;
   name: string;
   logo: string;
   url: string;
-  group: string; // Category (e.g. News, Entertainment, Sports)
+  group: string; // Primary category (e.g. News, Entertainment, Sports)
   categories?: string[]; // Normalized categories list
   country?: string; // Country code e.g. "US", "UK", "FR"
   countryName?: string;
-  language?: string;
+  language?: string; // Primary broadcast language display name
+  languages?: string[]; // All broadcast languages for this channel
   resolution?: string; // e.g. "1080p", "720p", "576p"
   tvgId?: string;
   tvgName?: string;
   streamVariants?: string[];
+  streams?: ChannelStreamSource[]; // Detailed stream sources from IPTV-org
+  altNames?: string[];
+  website?: string;
   isVerified?: boolean;
+  viewCount?: number;
 }
 
 export interface Category {
   id: string;
   name: string;
   count: number;
+}
+
+export interface RankedCategory extends Category {
+  streamCount: number;
+  viewCount: number;
+  score: number;
+}
+
+export interface CategoryRankingResult {
+  categories: RankedCategory[];
+  rankingSource: 'user_views' | 'catalog_signals';
+  label: string;
+  description: string;
+  hasGenuineUsageData: boolean;
 }
 
 export interface Country {
@@ -72,6 +101,7 @@ export interface UserPreferences {
   favorites: string[]; // List of channel IDs
   recentChannels: { channelId: string; timestamp: number }[];
   lastWatchedChannelId: string | null;
+  channelViews?: Record<string, number>; // Real play/watch counts per channel ID
   selectedCategory: string;
   selectedCountry: string;
   selectedLanguage?: string; // Filter catalog by language
@@ -88,4 +118,3 @@ export interface UserPreferences {
   activePlaylistUrl: string;
   lastCatalogueUpdate: number | null;
 }
-
