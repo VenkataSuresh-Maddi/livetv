@@ -1,8 +1,10 @@
 import { Channel, UserPreferences, AspectRatioMode, DeviceMode } from '../types';
 
-const PREFS_KEY = 'easytv_preferences_v1';
-const CHANNELS_CACHE_KEY = 'easytv_channels_cache_v1';
-const CHANNELS_CACHE_META_KEY = 'easytv_channels_cache_meta_v1';
+const PREFS_KEY = 'easytv_preferences_v2';
+const CHANNELS_CACHE_KEY = 'easytv_channels_cache_v2';
+const CHANNELS_CACHE_META_KEY = 'easytv_channels_cache_meta_v2';
+const DB_NAME = 'EasyTV_DB_v2';
+const DB_VERSION = 2;
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   favorites: [],
@@ -48,7 +50,7 @@ export interface CatalogueCacheMetadata {
   sourceUrl: string;
 }
 
-// Save channels to localStorage (with chunking if needed) or IndexedDB
+// Save complete channels to IndexedDB (with localStorage fallback for lightweight data)
 export async function saveCachedChannels(channels: Channel[], sourceUrl: string): Promise<void> {
   if (!channels || channels.length === 0) return;
 
@@ -59,7 +61,6 @@ export async function saveCachedChannels(channels: Channel[], sourceUrl: string)
   };
 
   try {
-    // Try IndexedDB first for high capacity
     if (window.indexedDB) {
       const db = await openIDB();
       const tx = db.transaction('channels_store', 'readwrite');
@@ -70,17 +71,19 @@ export async function saveCachedChannels(channels: Channel[], sourceUrl: string)
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
+      return;
     }
   } catch (idbErr) {
-    console.warn('[EasyTV Storage] IndexedDB save failed, falling back to localStorage:', idbErr);
-    try {
-      // Keep top 1000 channels for localStorage limit
-      const slice = channels.slice(0, 1000);
-      localStorage.setItem(CHANNELS_CACHE_KEY, JSON.stringify(slice));
-      localStorage.setItem(CHANNELS_CACHE_META_KEY, JSON.stringify(meta));
-    } catch (lsErr) {
-      console.warn('[EasyTV Storage] localStorage save also failed:', lsErr);
-    }
+    console.warn('[EasyTV Storage] IndexedDB save failed, attempting localStorage:', idbErr);
+  }
+
+  // Fallback to localStorage if IndexedDB is disabled
+  try {
+    // Only compress / trim for localStorage if browser throws QuotaExceededError
+    localStorage.setItem(CHANNELS_CACHE_META_KEY, JSON.stringify(meta));
+    localStorage.setItem(CHANNELS_CACHE_KEY, JSON.stringify(channels.slice(0, 3000)));
+  } catch (lsErr) {
+    console.warn('[EasyTV Storage] localStorage save failed:', lsErr);
   }
 }
 
@@ -133,7 +136,7 @@ export async function loadCachedChannels(): Promise<{ channels: Channel[]; meta:
 
 function openIDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = window.indexedDB.open('EasyTV_DB', 1);
+    const req = window.indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('channels_store')) {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface TvNavigationCallbacks {
   onUp?: () => void;
@@ -16,6 +16,9 @@ interface TvNavigationCallbacks {
 }
 
 export function useTvNavigation(callbacks: TvNavigationCallbacks, isEnabled = true) {
+  const callbacksRef = useRef<TvNavigationCallbacks>(callbacks);
+  callbacksRef.current = callbacks;
+
   useEffect(() => {
     if (!isEnabled) return;
 
@@ -35,62 +38,64 @@ export function useTvNavigation(callbacks: TvNavigationCallbacks, isEnabled = tr
         return;
       }
 
+      const cb = callbacksRef.current;
+
       switch (e.key) {
         case 'ArrowUp':
-          callbacks.onUp?.();
+          cb.onUp?.();
           e.preventDefault();
           break;
         case 'ArrowDown':
-          callbacks.onDown?.();
+          cb.onDown?.();
           e.preventDefault();
           break;
         case 'ArrowLeft':
-          callbacks.onLeft?.();
+          cb.onLeft?.();
           e.preventDefault();
           break;
         case 'ArrowRight':
-          callbacks.onRight?.();
+          cb.onRight?.();
           e.preventDefault();
           break;
         case 'Enter':
         case 'NumpadEnter':
-          callbacks.onSelect?.();
+          cb.onSelect?.();
           e.preventDefault();
           break;
         case 'Escape':
         case 'Backspace':
         case 'BrowserBack':
-          callbacks.onBack?.();
+          cb.onBack?.();
           e.preventDefault();
           break;
         case 'MediaPlayPause':
         case ' ':
-          callbacks.onPlayPause?.();
+          cb.onPlayPause?.();
           e.preventDefault();
           break;
         case 'PageDown':
         case 'ChannelDown':
-          callbacks.onChannelNext?.();
+          cb.onChannelNext?.();
           e.preventDefault();
           break;
         case 'PageUp':
         case 'ChannelUp':
-          callbacks.onChannelPrev?.();
+          cb.onChannelPrev?.();
           e.preventDefault();
           break;
         case 'm':
         case 'M':
-          callbacks.onMuteToggle?.();
+          cb.onMuteToggle?.();
           e.preventDefault();
           break;
         case 'f':
         case 'F':
-          callbacks.onFullscreenToggle?.();
+          cb.onFullscreenToggle?.();
           e.preventDefault();
           break;
         default:
           if (e.key >= '0' && e.key <= '9') {
-            callbacks.onNumberPress?.(parseInt(e.key, 10));
+            cb.onNumberPress?.(parseInt(e.key, 10));
           }
           break;
       }
@@ -100,5 +105,5 @@ export function useTvNavigation(callbacks: TvNavigationCallbacks, isEnabled = tr
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [callbacks, isEnabled]);
+  }, [isEnabled]);
 }

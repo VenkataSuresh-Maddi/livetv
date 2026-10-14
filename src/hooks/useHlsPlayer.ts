@@ -19,10 +19,21 @@ export function useHlsPlayer({
 }: UseHlsPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const currentLoadedUrlRef = useRef<string | null>(null);
+  const watchdogTimerRef = useRef<any>(null);
+  const networkRetriesRef = useRef<number>(0);
+
+  // Keep stable callback refs to prevent dependency invalidation loops
+  const onPlaybackSuccessRef = useRef(onPlaybackSuccess);
+  onPlaybackSuccessRef.current = onPlaybackSuccess;
+
+  const onPlaybackErrorRef = useRef(onPlaybackError);
+  onPlaybackErrorRef.current = onPlaybackError;
 
   const [state, setState] = useState<PlayerState>({
     isPlaying: false,
     isBuffering: false,
+    isAutoplayBlocked: false,
     isMuted: false,
     volume: 0.9,
     aspectRatio: preferredAspectRatio,
@@ -31,16 +42,20 @@ export function useHlsPlayer({
     activeQualityLabel: 'Auto',
     measuredResolution: undefined,
     error: null,
+    statusMessage: undefined,
     retryCount: 0,
   });
 
-  const retryTimeoutRef = useRef<any>(null);
+  // Sync preferred aspect ratio when prop changes
+  useEffect(() => {
+    setState((prev) => (prev.aspectRatio !== preferredAspectRatio ? { ...prev, aspectRatio: preferredAspectRatio } : prev));
+  }, [preferredAspectRatio]);
 
-  // Clean up existing HLS instance
+  // Clean up existing HLS instance and timers
   const cleanup = useCallback(() => {
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
+    if (watchdogTimerRef.current) {
+      clearTimeout(watchdogTimerRef.current);
+      watchdogTimerRef.current = null;
     }
     if (hlsRef.current) {
       hlsRef.current.destroy();
@@ -51,40 +66,68 @@ export function useHlsPlayer({
       videoRef.current.removeAttribute('src');
       videoRef.current.load();
     }
+    currentLoadedUrlRef.current = null;
   }, []);
 
-  // Main playback setup
+  // Main playback setup with bounded retries and timeouts
   const initPlayer = useCallback(
     (targetUrl: string, isRetry = false) => {
       const video = videoRef.current;
       if (!video || !targetUrl) return;
 
       cleanup();
+      currentLoadedUrlRef.current = targetUrl;
+
+      if (!isRetry) {
+        networkRetriesRef.current = 0;
+      }
 
       setState((prev) => ({
         ...prev,
+        isPlaying: false,
         isBuffering: true,
+        isAutoplayBlocked: false,
         error: null,
+        statusMessage: 'Connecting to live stream...',
         retryCount: isRetry ? prev.retryCount + 1 : 0,
       }));
+
+      // Bounded Watchdog: If nothing plays within 12 seconds, display actionable error instead of infinite spinner
+      if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
+      watchdogTimerRef.current = setTimeout(() => {
+        if (!state.isPlaying && videoRef.current?.paused) {
+          console.warn('[EasyTV Video] Watchdog timeout: stream took too long to connect');
+          cleanup();
+          const timeoutMsg = 'Broadcast connection timed out. The stream may be offline or geo-restricted.';
+          setState((prev) => ({
+            ...prev,
+            isBuffering: false,
+            error: timeoutMsg,
+            statusMessage: undefined,
+          }));
+          onPlaybackErrorRef.current?.(timeoutMsg);
+        }
+      }, 12000);
 
       // Determine if Hls.js is supported
       if (Hls.isSupported() && (targetUrl.includes('.m3u8') || !targetUrl.endsWith('.mp4'))) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
-          backBufferLength: 90,
-          manifestLoadingTimeOut: 12000,
-          manifestLoadingMaxRetry: 3,
-          levelLoadingTimeOut: 12000,
-          fragLoadingTimeOut: 12000,
+          backBufferLength: 60,
+          manifestLoadingTimeOut: 9000,
+          manifestLoadingMaxRetry: 1,
+          levelLoadingTimeOut: 9000,
+          levelLoadingMaxRetry: 1,
+          fragLoadingTimeOut: 9000,
+          fragLoadingMaxRetry: 1,
         });
 
         hlsRef.current = hls;
-
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          setState((prev) => ({ ...prev, statusMessage: 'Loading manifest...' }));
           hls.loadSource(targetUrl);
         });
 
@@ -101,20 +144,46 @@ export function useHlsPlayer({
             };
           });
 
-          // Sort descending by height
           levels.sort((a, b) => b.height - a.height);
 
           setState((prev) => ({
             ...prev,
             qualityLevels: levels,
-            isBuffering: false,
+            statusMessage: 'Starting playback...',
           }));
 
-          video.play().catch((playErr) => {
-            console.warn('[EasyTV Video] Autoplay prevented, waiting for user gesture:', playErr);
-          });
-
-          onPlaybackSuccess?.();
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                if (watchdogTimerRef.current) {
+                  clearTimeout(watchdogTimerRef.current);
+                  watchdogTimerRef.current = null;
+                }
+                setState((prev) => ({
+                  ...prev,
+                  isPlaying: true,
+                  isBuffering: false,
+                  isAutoplayBlocked: false,
+                  statusMessage: undefined,
+                }));
+                onPlaybackSuccessRef.current?.();
+              })
+              .catch((playErr) => {
+                console.warn('[EasyTV Video] Autoplay prevented by browser:', playErr);
+                if (watchdogTimerRef.current) {
+                  clearTimeout(watchdogTimerRef.current);
+                  watchdogTimerRef.current = null;
+                }
+                // Autoplay blocked: allow user gesture to play
+                setState((prev) => ({
+                  ...prev,
+                  isBuffering: false,
+                  isAutoplayBlocked: true,
+                  statusMessage: 'Click to start playback',
+                }));
+              });
+          }
         });
 
         hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
@@ -130,30 +199,60 @@ export function useHlsPlayer({
         });
 
         hls.on(Hls.Events.ERROR, (_, data) => {
-          console.warn('[EasyTV Video] Hls error:', data.type, data.details, data.fatal);
+          console.warn('[EasyTV Video] HLS Error:', data.type, data.details, data.fatal);
 
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                // If stream failed directly and we haven't tried proxying yet, try proxy
-                if (!targetUrl.startsWith('/api/proxy') && targetUrl.startsWith('http')) {
-                  console.log('[EasyTV Video] Network error on direct stream, trying proxy fallback...');
+                // Only try proxy once, and do not loop indefinitely
+                if (!targetUrl.startsWith('/api/proxy') && targetUrl.startsWith('http') && networkRetriesRef.current === 0) {
+                  networkRetriesRef.current += 1;
+                  console.log('[EasyTV Video] Network error on direct stream, attempting proxy fallback once...');
                   cleanup();
                   initPlayer(`/api/proxy?url=${encodeURIComponent(targetUrl)}`, true);
                   return;
                 }
-                console.log('[EasyTV Video] Fatal network error encountered, recovering...');
-                hls.startLoad();
+
+                // If already proxied or retried once, do NOT loop. Fail cleanly.
+                cleanup();
+                const netErrMsg = 'Stream is offline or blocked by broadcaster CORS / security policy.';
+                setState((prev) => ({
+                  ...prev,
+                  isBuffering: false,
+                  error: netErrMsg,
+                  statusMessage: undefined,
+                }));
+                onPlaybackErrorRef.current?.(netErrMsg);
                 break;
+
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.log('[EasyTV Video] Fatal media error encountered, recovering...');
-                hls.recoverMediaError();
+                if (networkRetriesRef.current < 2) {
+                  networkRetriesRef.current += 1;
+                  console.log('[EasyTV Video] Media error encountered, recovering...');
+                  hls.recoverMediaError();
+                } else {
+                  cleanup();
+                  const mediaErrMsg = 'Broadcaster video codec or media format is not supported.';
+                  setState((prev) => ({
+                    ...prev,
+                    isBuffering: false,
+                    error: mediaErrMsg,
+                    statusMessage: undefined,
+                  }));
+                  onPlaybackErrorRef.current?.(mediaErrMsg);
+                }
                 break;
+
               default:
                 cleanup();
                 const errMsg = 'Stream is currently offline or unreachable. Please try another channel.';
-                setState((prev) => ({ ...prev, error: errMsg, isBuffering: false }));
-                onPlaybackError?.(errMsg);
+                setState((prev) => ({
+                  ...prev,
+                  isBuffering: false,
+                  error: errMsg,
+                  statusMessage: undefined,
+                }));
+                onPlaybackErrorRef.current?.(errMsg);
                 break;
             }
           }
@@ -164,9 +263,20 @@ export function useHlsPlayer({
         video.addEventListener(
           'loadedmetadata',
           () => {
+            if (watchdogTimerRef.current) {
+              clearTimeout(watchdogTimerRef.current);
+              watchdogTimerRef.current = null;
+            }
             setState((prev) => ({ ...prev, isBuffering: false }));
-            video.play().catch(() => {});
-            onPlaybackSuccess?.();
+            video
+              .play()
+              .then(() => {
+                setState((prev) => ({ ...prev, isPlaying: true, isAutoplayBlocked: false }));
+                onPlaybackSuccessRef.current?.();
+              })
+              .catch(() => {
+                setState((prev) => ({ ...prev, isAutoplayBlocked: true }));
+              });
           },
           { once: true }
         );
@@ -174,19 +284,27 @@ export function useHlsPlayer({
         video.addEventListener(
           'error',
           () => {
+            if (watchdogTimerRef.current) {
+              clearTimeout(watchdogTimerRef.current);
+              watchdogTimerRef.current = null;
+            }
             const errMsg = 'Playback failed. The broadcaster stream may be temporarily unavailable.';
             setState((prev) => ({ ...prev, error: errMsg, isBuffering: false }));
-            onPlaybackError?.(errMsg);
+            onPlaybackErrorRef.current?.(errMsg);
           },
           { once: true }
         );
       } else {
+        if (watchdogTimerRef.current) {
+          clearTimeout(watchdogTimerRef.current);
+          watchdogTimerRef.current = null;
+        }
         const errMsg = 'HLS streaming is not supported in this browser environment.';
         setState((prev) => ({ ...prev, error: errMsg, isBuffering: false }));
-        onPlaybackError?.(errMsg);
+        onPlaybackErrorRef.current?.(errMsg);
       }
     },
-    [cleanup, onPlaybackError, onPlaybackSuccess]
+    [cleanup, state.isPlaying]
   );
 
   // Watch for streamUrl changes
@@ -197,12 +315,17 @@ export function useHlsPlayer({
         ...prev,
         isPlaying: false,
         isBuffering: false,
+        isAutoplayBlocked: false,
         error: null,
+        statusMessage: undefined,
       }));
       return;
     }
 
-    initPlayer(streamUrl);
+    // Only re-init if the stream URL actually changed
+    if (streamUrl !== currentLoadedUrlRef.current) {
+      initPlayer(streamUrl);
+    }
 
     return () => {
       cleanup();
@@ -214,10 +337,17 @@ export function useHlsPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    const onPlay = () => setState((prev) => ({ ...prev, isPlaying: true, isBuffering: false }));
+    const onPlay = () =>
+      setState((prev) => ({ ...prev, isPlaying: true, isBuffering: false, isAutoplayBlocked: false }));
     const onPause = () => setState((prev) => ({ ...prev, isPlaying: false }));
     const onWaiting = () => setState((prev) => ({ ...prev, isBuffering: true }));
-    const onPlaying = () => setState((prev) => ({ ...prev, isBuffering: false, isPlaying: true }));
+    const onPlaying = () => {
+      if (watchdogTimerRef.current) {
+        clearTimeout(watchdogTimerRef.current);
+        watchdogTimerRef.current = null;
+      }
+      setState((prev) => ({ ...prev, isBuffering: false, isPlaying: true, isAutoplayBlocked: false }));
+    };
     const onVolumeChange = () =>
       setState((prev) => ({
         ...prev,
@@ -256,9 +386,15 @@ export function useHlsPlayer({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play().catch(() => {});
+      video
+        .play()
+        .then(() => {
+          setState((prev) => ({ ...prev, isPlaying: true, isAutoplayBlocked: false, isBuffering: false }));
+        })
+        .catch(() => {});
     } else {
       video.pause();
+      setState((prev) => ({ ...prev, isPlaying: false }));
     }
   }, []);
 
@@ -294,6 +430,7 @@ export function useHlsPlayer({
 
   const retryPlayback = useCallback(() => {
     if (streamUrl) {
+      networkRetriesRef.current = 0;
       initPlayer(streamUrl, true);
     }
   }, [streamUrl, initPlayer]);

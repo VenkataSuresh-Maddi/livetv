@@ -39,6 +39,7 @@ export interface QualityLevel {
 export interface PlayerState {
   isPlaying: boolean;
   isBuffering: boolean;
+  isAutoplayBlocked: boolean;
   isMuted: boolean;
   volume: number; // 0.0 to 1.0
   aspectRatio: AspectRatioMode;
@@ -47,6 +48,7 @@ export interface PlayerState {
   activeQualityLabel: string;
   measuredResolution?: string;
   error: string | null;
+  statusMessage?: string;
   retryCount: number;
 }
 
