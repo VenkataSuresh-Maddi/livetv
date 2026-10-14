@@ -36,6 +36,7 @@ interface PlayerProps {
   onSetVolume: (volume: number) => void;
   onVolumeUp?: () => void;
   onVolumeDown?: () => void;
+  onSeek?: (deltaSeconds: number) => void;
   onSetQuality: (qualityIndex: number) => void;
   onSetAspectRatio: (mode: AspectRatioMode) => void;
   onRetry: () => void;
@@ -57,6 +58,7 @@ export const Player: React.FC<PlayerProps> = ({
   onSetVolume,
   onVolumeUp,
   onVolumeDown,
+  onSeek,
   onSetQuality,
   onSetAspectRatio,
   onRetry,
@@ -73,10 +75,12 @@ export const Player: React.FC<PlayerProps> = ({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const [showVolumeHud, setShowVolumeHud] = useState(false);
   const [playStateFeedback, setPlayStateFeedback] = useState<'play' | 'pause' | null>(null);
+  const [seekFeedback, setSeekFeedback] = useState<{ seconds: number; direction: 'forward' | 'backward' } | null>(null);
 
   const hideControlsTimerRef = useRef<any>(null);
   const volumeHudTimerRef = useRef<any>(null);
   const feedbackTimerRef = useRef<any>(null);
+  const seekFeedbackTimerRef = useRef<any>(null);
   const isHoveringControlsRef = useRef(false);
   const isAdjustingVolumeRef = useRef(false);
   const prevVolumeRef = useRef(playerState.volume);
@@ -158,12 +162,66 @@ export const Player: React.FC<PlayerProps> = ({
     }
   }, [playerState.volume, playerState.isMuted]);
 
+  // Trigger floating animated volume HUD
+  const triggerVolumeHud = useCallback(() => {
+    setShowVolumeHud(true);
+    if (volumeHudTimerRef.current) clearTimeout(volumeHudTimerRef.current);
+    volumeHudTimerRef.current = setTimeout(() => {
+      setShowVolumeHud(false);
+    }, 1500);
+  }, []);
+
+  const handleVolumeUpAction = useCallback(() => {
+    triggerVolumeHud();
+    if (onVolumeUp) {
+      onVolumeUp();
+    } else {
+      onSetVolume(Math.min(1, Math.round((playerState.volume + 0.05) * 100) / 100));
+    }
+  }, [triggerVolumeHud, onVolumeUp, onSetVolume, playerState.volume]);
+
+  const handleVolumeDownAction = useCallback(() => {
+    triggerVolumeHud();
+    if (onVolumeDown) {
+      onVolumeDown();
+    } else {
+      onSetVolume(Math.max(0, Math.round((playerState.volume - 0.05) * 100) / 100));
+    }
+  }, [triggerVolumeHud, onVolumeDown, onSetVolume, playerState.volume]);
+
+  // Handle 10-second forward / backward seek with immediate visual feedback HUD
+  const handleSeek = useCallback(
+    (seconds: number) => {
+      if (onSeek) {
+        onSeek(seconds);
+      } else {
+        const video = videoRef.current;
+        if (video) {
+          try {
+            video.currentTime = Math.max(0, video.currentTime + seconds);
+          } catch (_) {}
+        }
+      }
+      setSeekFeedback({
+        seconds: Math.abs(seconds),
+        direction: seconds > 0 ? 'forward' : 'backward',
+      });
+      if (seekFeedbackTimerRef.current) clearTimeout(seekFeedbackTimerRef.current);
+      seekFeedbackTimerRef.current = setTimeout(() => {
+        setSeekFeedback(null);
+      }, 700);
+      resetControlsTimer();
+    },
+    [onSeek, videoRef, resetControlsTimer]
+  );
+
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
       if (volumeHudTimerRef.current) clearTimeout(volumeHudTimerRef.current);
       if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      if (seekFeedbackTimerRef.current) clearTimeout(seekFeedbackTimerRef.current);
     };
   }, []);
 
@@ -233,7 +291,7 @@ export const Player: React.FC<PlayerProps> = ({
     resetControlsTimer();
   }, [onTogglePlay, playerState.isPlaying, resetControlsTimer]);
 
-  // Keyboard accessibility listeners (Space, M, F, Esc, ArrowUp, ArrowDown, ArrowLeft, ArrowRight)
+  // Desktop keyboard listeners (Space, ArrowLeft/Right 10s seek, ArrowUp/Down 5% volume, M, F, Esc/Backspace)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -241,7 +299,9 @@ export const Player: React.FC<PlayerProps> = ({
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
-          target.getAttribute('contenteditable') === 'true')
+          target.tagName === 'SELECT' ||
+          target.getAttribute('contenteditable') === 'true' ||
+          target.isContentEditable)
       ) {
         if (e.key === 'Escape') target.blur();
         return;
@@ -251,14 +311,19 @@ export const Player: React.FC<PlayerProps> = ({
 
       switch (e.key) {
         case ' ':
+        case 'Spacebar':
         case 'k':
         case 'K':
           e.preventDefault();
+          if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'BUTTON') {
+            document.activeElement.blur();
+          }
           onTogglePlay();
           break;
         case 'm':
         case 'M':
           e.preventDefault();
+          triggerVolumeHud();
           onToggleMute();
           break;
         case 'f':
@@ -267,41 +332,55 @@ export const Player: React.FC<PlayerProps> = ({
           toggleFullscreen();
           break;
         case 'ArrowUp':
+        case '+':
+        case '=':
           e.preventDefault();
-          if (onVolumeUp) {
-            onVolumeUp();
-          } else {
-            onSetVolume(Math.min(1, playerState.volume + 0.05));
-          }
+          handleVolumeUpAction();
           break;
         case 'ArrowDown':
+        case '-':
+        case '_':
           e.preventDefault();
-          if (onVolumeDown) {
-            onVolumeDown();
-          } else {
-            onSetVolume(Math.max(0, playerState.volume - 0.05));
-          }
+          handleVolumeDownAction();
           break;
         case 'ArrowLeft':
-          if (onPrevChannel) {
-            e.preventDefault();
-            onPrevChannel();
-          }
+          e.preventDefault();
+          handleSeek(-10);
           break;
         case 'ArrowRight':
+          e.preventDefault();
+          handleSeek(10);
+          break;
+        case 'Escape':
+        case 'Backspace':
+          e.preventDefault();
+          const isFs = document.fullscreenElement || (document as any).webkitFullscreenElement;
+          if (isFs) {
+            if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+            else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen().catch(() => {});
+          } else if (onBack) {
+            onBack();
+          }
+          break;
+        case 'PageDown':
+        case ']':
+        case 'MediaTrackNext':
           if (onNextChannel) {
             e.preventDefault();
             onNextChannel();
           }
           break;
-        case 'Escape':
-          const isFs = document.fullscreenElement || (document as any).webkitFullscreenElement;
-          if (isFs) {
-            if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
-          } else if (onBack) {
+        case 'PageUp':
+        case '[':
+        case 'MediaTrackPrevious':
+          if (onPrevChannel) {
             e.preventDefault();
-            onBack();
+            onPrevChannel();
           }
+          break;
+        case 'MediaPlayPause':
+          e.preventDefault();
+          onTogglePlay();
           break;
         default:
           break;
@@ -314,14 +393,14 @@ export const Player: React.FC<PlayerProps> = ({
     onTogglePlay,
     onToggleMute,
     toggleFullscreen,
-    onVolumeUp,
-    onVolumeDown,
-    onSetVolume,
-    playerState.volume,
+    handleVolumeUpAction,
+    handleVolumeDownAction,
+    handleSeek,
     onPrevChannel,
     onNextChannel,
     onBack,
     resetControlsTimer,
+    triggerVolumeHud,
   ]);
 
   const getObjectFitClass = (mode: AspectRatioMode) => {
@@ -390,6 +469,25 @@ export const Player: React.FC<PlayerProps> = ({
                 <Play className="w-10 h-10 fill-current ml-1" />
               ) : (
                 <Pause className="w-10 h-10" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Seek Feedback HUD on Left/Right Arrow */}
+        {seekFeedback && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-25">
+            <div className="px-5 py-3 rounded-2xl bg-black/85 backdrop-blur-md border border-zinc-700/80 shadow-2xl flex items-center gap-2.5 text-white font-mono font-bold text-sm sm:text-base animate-pulse">
+              {seekFeedback.direction === 'backward' ? (
+                <>
+                  <RotateCcw className="w-5 h-5 text-red-500" />
+                  <span>-{seekFeedback.seconds}s</span>
+                </>
+              ) : (
+                <>
+                  <span>+{seekFeedback.seconds}s</span>
+                  <RotateCcw className="w-5 h-5 text-red-500 -scale-x-100" />
+                </>
               )}
             </div>
           </div>
@@ -699,13 +797,10 @@ export const Player: React.FC<PlayerProps> = ({
                 {/* Volume Down Step Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (onVolumeDown) onVolumeDown();
-                    else onSetVolume(Math.max(0, playerState.volume - 0.05));
-                  }}
-                  aria-label="Decrease Volume"
+                  onClick={handleVolumeDownAction}
+                  aria-label="Decrease Volume by 5%"
                   className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                  title="Decrease Volume (- / Down Arrow)"
+                  title="Decrease Volume by 5% (- / Down Arrow)"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
@@ -715,10 +810,11 @@ export const Player: React.FC<PlayerProps> = ({
                   type="range"
                   min="0"
                   max="1"
-                  step="0.02"
+                  step="0.05"
                   value={effectiveVolume}
                   onMouseDown={() => {
                     isAdjustingVolumeRef.current = true;
+                    triggerVolumeHud();
                   }}
                   onMouseUp={() => {
                     isAdjustingVolumeRef.current = false;
@@ -726,33 +822,34 @@ export const Player: React.FC<PlayerProps> = ({
                   }}
                   onTouchStart={() => {
                     isAdjustingVolumeRef.current = true;
+                    triggerVolumeHud();
                   }}
                   onTouchEnd={() => {
                     isAdjustingVolumeRef.current = false;
                     resetControlsTimer();
                   }}
-                  onChange={(e) => onSetVolume(parseFloat(e.target.value))}
+                  onChange={(e) => {
+                    triggerVolumeHud();
+                    onSetVolume(parseFloat(e.target.value));
+                  }}
                   className="w-16 sm:w-24 accent-red-600 cursor-pointer h-1.5 bg-zinc-700 rounded-lg transition-all"
                   aria-label="Volume level"
-                  title={`Volume: ${volumePercent}%`}
+                  title={`Volume: ${playerState.isMuted ? 'Muted' : `${volumePercent}%`}`}
                 />
 
                 {/* Volume Up Step Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (onVolumeUp) onVolumeUp();
-                    else onSetVolume(Math.min(1, playerState.volume + 0.05));
-                  }}
-                  aria-label="Increase Volume"
+                  onClick={handleVolumeUpAction}
+                  aria-label="Increase Volume by 5%"
                   className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                  title="Increase Volume (+ / Up Arrow)"
+                  title="Increase Volume by 5% (+ / Up Arrow)"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
 
-                <span className="text-[11px] font-mono text-zinc-400 w-8 text-right hidden sm:inline">
-                  {playerState.isMuted ? 'Off' : `${volumePercent}%`}
+                <span className="text-[11px] font-mono text-zinc-400 w-12 text-right hidden sm:inline">
+                  {playerState.isMuted ? 'Muted' : `${volumePercent}%`}
                 </span>
               </div>
             </div>

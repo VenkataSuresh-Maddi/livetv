@@ -101,6 +101,7 @@ export default function App() {
     setVolume,
     volumeUp,
     volumeDown,
+    seek,
     setQuality,
     setAspectRatio,
     retryPlayback,
@@ -261,21 +262,28 @@ export default function App() {
     [preferences.favorites, updatePreferences]
   );
 
-  // TV Remote Navigation
-  useTvNavigation({
-    onSelect: () => {
-      if (selectedChannel) {
-        togglePlay();
-      }
+  // TV Remote Navigation (only enabled when outside player tab to prevent duplicate keyboard adjustments)
+  useTvNavigation(
+    {
+      onSelect: () => {
+        if (selectedChannel) {
+          handleSelectChannel(selectedChannel);
+        }
+      },
+      onPlayPause: () => {
+        if (selectedChannel) {
+          handleSelectChannel(selectedChannel);
+        }
+      },
+      onChannelNext: handleNextChannel,
+      onChannelPrev: handlePrevChannel,
+      onMuteToggle: toggleMute,
+      onUp: volumeUp,
+      onDown: volumeDown,
+      onBack: handleBackFromPlayer,
     },
-    onPlayPause: togglePlay,
-    onChannelNext: handleNextChannel,
-    onChannelPrev: handlePrevChannel,
-    onMuteToggle: toggleMute,
-    onUp: volumeUp,
-    onDown: volumeDown,
-    onBack: handleBackFromPlayer,
-  });
+    activeTab !== 'player'
+  );
 
   // Filtered lists for Netflix-style carousels
   const recentChannels = useMemo(() => {
@@ -379,6 +387,7 @@ export default function App() {
               onSetVolume={setVolume}
               onVolumeUp={volumeUp}
               onVolumeDown={volumeDown}
+              onSeek={seek}
               onSetQuality={setQuality}
               onSetAspectRatio={setAspectRatio}
               onRetry={retryPlayback}

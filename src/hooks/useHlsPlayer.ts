@@ -689,49 +689,124 @@ export function useHlsPlayer({
     }
   }, [clearWatchdog]);
 
+  const clampVolume = (val: number): number => {
+    if (isNaN(val)) return 0;
+    const pct = Math.max(0, Math.min(100, Math.round(val * 100)));
+    return pct / 100;
+  };
+
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (video.muted || video.volume === 0) {
+
+    const currentlyMuted = video.muted || video.volume === 0;
+
+    if (currentlyMuted) {
+      // Unmute: restore remembered previous nonzero volume
+      const restored = lastNonZeroVolumeRef.current > 0 ? lastNonZeroVolumeRef.current : 0.9;
       video.muted = false;
-      if (video.volume === 0) {
-        const restored = lastNonZeroVolumeRef.current > 0 ? lastNonZeroVolumeRef.current : 0.9;
-        video.volume = restored;
-      }
+      video.volume = restored;
+      setState((prev) => ({
+        ...prev,
+        volume: restored,
+        isMuted: false,
+      }));
     } else {
-      lastNonZeroVolumeRef.current = video.volume > 0 ? video.volume : 0.9;
+      // Mute: save current volume if > 0, then mute
+      if (video.volume > 0) {
+        lastNonZeroVolumeRef.current = clampVolume(video.volume);
+      }
       video.muted = true;
+      setState((prev) => ({
+        ...prev,
+        isMuted: true,
+      }));
     }
   }, []);
 
   const setVolume = useCallback((val: number) => {
     const video = videoRef.current;
     if (!video) return;
-    const clamped = Math.max(0, Math.min(1, Math.round(val * 100) / 100));
+    const clamped = clampVolume(val);
     video.volume = clamped;
     if (clamped > 0) {
       lastNonZeroVolumeRef.current = clamped;
-      if (video.muted) {
-        video.muted = false;
-      }
+      video.muted = false;
+      setState((prev) => ({
+        ...prev,
+        volume: clamped,
+        isMuted: false,
+      }));
     } else {
       video.muted = true;
+      setState((prev) => ({
+        ...prev,
+        volume: 0,
+        isMuted: true,
+      }));
     }
   }, []);
 
-  const volumeUp = useCallback((step = 0.05) => {
-    const video = videoRef.current;
-    if (!video) return;
-    const current = video.muted ? 0 : video.volume;
-    setVolume(current + step);
-  }, [setVolume]);
+  const volumeUp = useCallback(
+    (step = 0.05) => {
+      const video = videoRef.current;
+      if (!video) return;
 
-  const volumeDown = useCallback((step = 0.05) => {
+      let baseVolume = video.volume;
+      if (video.muted) {
+        // If muted and volume is 0, base is 0; otherwise un-mute and step up from current volume
+        if (baseVolume === 0 && lastNonZeroVolumeRef.current > 0) {
+          baseVolume = 0;
+        }
+        video.muted = false;
+      }
+      const currentPct = Math.round(baseVolume * 100);
+      const stepPct = Math.round(step * 100);
+      const nextPct = Math.min(100, Math.max(0, currentPct + stepPct));
+      setVolume(nextPct / 100);
+    },
+    [setVolume]
+  );
+
+  const volumeDown = useCallback(
+    (step = 0.05) => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      let baseVolume = video.volume;
+      if (video.muted) {
+        video.muted = false;
+      }
+      const currentPct = Math.round(baseVolume * 100);
+      const stepPct = Math.round(step * 100);
+      const nextPct = Math.max(0, currentPct - stepPct);
+      setVolume(nextPct / 100);
+    },
+    [setVolume]
+  );
+
+  const seek = useCallback((deltaSeconds: number) => {
     const video = videoRef.current;
     if (!video) return;
-    const current = video.muted ? 0 : video.volume;
-    setVolume(current - step);
-  }, [setVolume]);
+    try {
+      const isLive = !isFinite(video.duration) || video.duration === 0;
+      if (isLive) {
+        if (video.seekable && video.seekable.length > 0) {
+          const start = video.seekable.start(0);
+          const end = video.seekable.end(video.seekable.length - 1);
+          const target = Math.max(start, Math.min(end, video.currentTime + deltaSeconds));
+          video.currentTime = target;
+        } else {
+          video.currentTime = Math.max(0, video.currentTime + deltaSeconds);
+        }
+      } else {
+        const target = Math.max(0, Math.min(video.duration, video.currentTime + deltaSeconds));
+        video.currentTime = target;
+      }
+    } catch (err) {
+      console.warn('[EasyTV Video] Seek exception:', err);
+    }
+  }, []);
 
   const setQuality = useCallback((index: number) => {
     if (!hlsRef.current) return;
@@ -763,6 +838,7 @@ export function useHlsPlayer({
     setVolume,
     volumeUp,
     volumeDown,
+    seek,
     setQuality,
     setAspectRatio,
     retryPlayback,
