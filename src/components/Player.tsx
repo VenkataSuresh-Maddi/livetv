@@ -164,7 +164,7 @@ export const Player: React.FC<PlayerProps> = ({
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold flex items-center gap-2 shadow-lg shadow-red-600/30 transition-transform active:scale-95"
+                  className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold flex items-center gap-2 shadow-lg shadow-red-600/30 transition-transform active:scale-95 cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>Retry Stream</span>
@@ -172,12 +172,47 @@ export const Player: React.FC<PlayerProps> = ({
                 <button
                   type="button"
                   onClick={onNextChannel}
-                  className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold border border-zinc-700 flex items-center gap-2 transition-transform active:scale-95"
+                  className="px-6 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold border border-zinc-700 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer"
                 >
                   <Tv className="w-4 h-4" />
                   <span>Next Live Channel</span>
                 </button>
               </div>
+
+              {/* Technical Diagnostics */}
+              {playerState.diagnostics && (
+                <div className="mt-4 pt-3 border-t border-zinc-800/80 max-w-lg w-full text-left">
+                  <details className="text-[11px] text-zinc-400 cursor-pointer">
+                    <summary className="font-semibold text-zinc-300 hover:text-white">
+                      Technical Stream Diagnostics
+                    </summary>
+                    <div className="mt-2 p-2.5 rounded-lg bg-black/60 font-mono text-[10px] space-y-1 text-zinc-300 border border-zinc-800">
+                      {playerState.diagnostics.lastErrorType && (
+                        <p>
+                          <span className="text-zinc-500">Error Type:</span>{' '}
+                          <span className="text-red-400 font-bold">{playerState.diagnostics.lastErrorType}</span>
+                        </p>
+                      )}
+                      {playerState.diagnostics.lastErrorDetails && (
+                        <p>
+                          <span className="text-zinc-500">Details:</span>{' '}
+                          <span>{playerState.diagnostics.lastErrorDetails}</span>
+                        </p>
+                      )}
+                      <p>
+                        <span className="text-zinc-500">Proxied Route:</span>{' '}
+                        <span>{playerState.diagnostics.isProxied ? 'Yes (/api/proxy)' : 'No (Direct)'}</span>
+                      </p>
+                      {playerState.diagnostics.streamUrl && (
+                        <p className="truncate">
+                          <span className="text-zinc-500">Stream URI:</span>{' '}
+                          <span className="text-zinc-400">{playerState.diagnostics.streamUrl}</span>
+                        </p>
+                      )}
+                    </div>
+                  </details>
+                </div>
+              )}
             </div>
           )}
 
@@ -187,6 +222,19 @@ export const Player: React.FC<PlayerProps> = ({
               <Crop className="w-3.5 h-3.5" />
               <span>Fill Mode (Picture cropped)</span>
             </div>
+          )}
+
+          {/* Tap to Unmute Banner */}
+          {playerState.isMuted && playerState.isPlaying && !playerState.error && (
+            <button
+              type="button"
+              onClick={onToggleMute}
+              className="absolute top-3 right-3 z-10 px-3.5 py-1.5 rounded-full bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-black/50 transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-xs animate-pulse"
+              title="Click to Unmute Sound"
+            >
+              <VolumeX className="w-4 h-4" />
+              <span>Tap to Unmute</span>
+            </button>
           )}
         </div>
 

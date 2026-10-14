@@ -49,6 +49,12 @@ export interface PlayerState {
   measuredResolution?: string;
   error: string | null;
   statusMessage?: string;
+  diagnostics?: {
+    lastErrorType?: string;
+    lastErrorDetails?: string;
+    isProxied?: boolean;
+    streamUrl?: string;
+  };
   retryCount: number;
 }
 
