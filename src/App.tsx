@@ -99,6 +99,8 @@ export default function App() {
     togglePlay,
     toggleMute,
     setVolume,
+    volumeUp,
+    volumeDown,
     setQuality,
     setAspectRatio,
     retryPlayback,
@@ -184,16 +186,54 @@ export default function App() {
   const categories = useMemo(() => extractCategories(channels), [channels]);
   const countries = useMemo(() => extractCountries(channels), [channels]);
 
-  // Channel selection
+  // Safe back from player handler: exits fullscreen if open and returns to home view
+  const handleBackFromPlayer = useCallback(() => {
+    const isFs = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    if (isFs) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen().catch(() => {});
+      }
+    }
+    setActiveTab('home');
+    try {
+      if (window.location.hash === '#player') {
+        window.history.replaceState({ tab: 'home' }, '', window.location.pathname + window.location.search);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Channel selection with safe browser history integration
   const handleSelectChannel = useCallback(
     (channel: Channel) => {
       setSelectedChannel(channel);
       setActiveTab('player');
       updatePreferences({ lastWatchedChannelId: channel.id });
+      try {
+        if (window.location.hash !== '#player') {
+          window.history.pushState({ tab: 'player', channelId: channel.id }, '', '#player');
+        }
+      } catch (_) {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     [updatePreferences]
   );
+
+  // Browser back navigation sync
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.hash !== '#player') {
+        const isFs = document.fullscreenElement || (document as any).webkitFullscreenElement;
+        if (isFs) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        }
+        setActiveTab('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleNextChannel = useCallback(() => {
     if (channels.length === 0) return;
@@ -232,11 +272,9 @@ export default function App() {
     onChannelNext: handleNextChannel,
     onChannelPrev: handlePrevChannel,
     onMuteToggle: toggleMute,
-    onBack: () => {
-      if (activeTab !== 'home') {
-        setActiveTab('home');
-      }
-    },
+    onUp: volumeUp,
+    onDown: volumeDown,
+    onBack: handleBackFromPlayer,
   });
 
   // Filtered lists for Netflix-style carousels
@@ -339,10 +377,14 @@ export default function App() {
               onTogglePlay={togglePlay}
               onToggleMute={toggleMute}
               onSetVolume={setVolume}
+              onVolumeUp={volumeUp}
+              onVolumeDown={volumeDown}
               onSetQuality={setQuality}
               onSetAspectRatio={setAspectRatio}
               onRetry={retryPlayback}
               onNextChannel={handleNextChannel}
+              onPrevChannel={handlePrevChannel}
+              onBack={handleBackFromPlayer}
               relatedChannels={relatedChannels}
               onSelectChannel={handleSelectChannel}
             />

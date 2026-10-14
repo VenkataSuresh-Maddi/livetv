@@ -40,6 +40,8 @@ export function useHlsPlayer({
   const onPlaybackErrorRef = useRef(onPlaybackError);
   onPlaybackErrorRef.current = onPlaybackError;
 
+  const lastNonZeroVolumeRef = useRef<number>(0.9);
+
   const [state, setState] = useState<PlayerState>({
     isPlaying: false,
     isBuffering: false,
@@ -554,6 +556,10 @@ export function useHlsPlayer({
     const video = videoRef.current;
     if (!video) return;
 
+    // Initialize video volume & muted states to match current state
+    video.volume = state.volume;
+    video.muted = state.isMuted;
+
     const onPlay = () => {
       isPlayingRef.current = true;
       setState((prev) => ({ ...prev, isPlaying: true, isBuffering: false, isAutoplayBlocked: false }));
@@ -562,6 +568,11 @@ export function useHlsPlayer({
     const onPause = () => {
       isPlayingRef.current = false;
       setState((prev) => ({ ...prev, isPlaying: false }));
+    };
+
+    const onEnded = () => {
+      isPlayingRef.current = false;
+      setState((prev) => ({ ...prev, isPlaying: false, isBuffering: false }));
     };
 
     const onWaiting = () => {
@@ -594,10 +605,13 @@ export function useHlsPlayer({
     };
 
     const onVolumeChange = () => {
+      if (video.volume > 0 && !video.muted) {
+        lastNonZeroVolumeRef.current = video.volume;
+      }
       setState((prev) => ({
         ...prev,
         volume: video.volume,
-        isMuted: video.muted,
+        isMuted: video.muted || video.volume === 0,
       }));
     };
 
@@ -612,6 +626,7 @@ export function useHlsPlayer({
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('ended', onEnded);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('playing', onPlaying);
     video.addEventListener('timeupdate', onTimeUpdate);
@@ -621,6 +636,7 @@ export function useHlsPlayer({
     return () => {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('ended', onEnded);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('playing', onPlaying);
       video.removeEventListener('timeupdate', onTimeUpdate);
@@ -634,7 +650,7 @@ export function useHlsPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    if (video.paused) {
+    if (video.paused || video.ended) {
       video
         .play()
         .then(() => {
@@ -645,6 +661,26 @@ export function useHlsPlayer({
         })
         .catch((err) => {
           console.warn('[EasyTV Video] Play toggle rejected:', err);
+          if (err.name === 'NotAllowedError') {
+            video.muted = true;
+            video
+              .play()
+              .then(() => {
+                clearWatchdog();
+                isPlayingRef.current = true;
+                hasStartedPlaybackRef.current = true;
+                setState((prev) => ({
+                  ...prev,
+                  isPlaying: true,
+                  isMuted: true,
+                  isAutoplayBlocked: false,
+                  isBuffering: false,
+                }));
+              })
+              .catch(() => {
+                setState((prev) => ({ ...prev, isAutoplayBlocked: true }));
+              });
+          }
         });
     } else {
       video.pause();
@@ -656,18 +692,46 @@ export function useHlsPlayer({
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !video.muted;
+    if (video.muted || video.volume === 0) {
+      video.muted = false;
+      if (video.volume === 0) {
+        const restored = lastNonZeroVolumeRef.current > 0 ? lastNonZeroVolumeRef.current : 0.9;
+        video.volume = restored;
+      }
+    } else {
+      lastNonZeroVolumeRef.current = video.volume > 0 ? video.volume : 0.9;
+      video.muted = true;
+    }
   }, []);
 
   const setVolume = useCallback((val: number) => {
     const video = videoRef.current;
     if (!video) return;
-    const clamped = Math.max(0, Math.min(1, val));
+    const clamped = Math.max(0, Math.min(1, Math.round(val * 100) / 100));
     video.volume = clamped;
-    if (clamped > 0 && video.muted) {
-      video.muted = false;
+    if (clamped > 0) {
+      lastNonZeroVolumeRef.current = clamped;
+      if (video.muted) {
+        video.muted = false;
+      }
+    } else {
+      video.muted = true;
     }
   }, []);
+
+  const volumeUp = useCallback((step = 0.05) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const current = video.muted ? 0 : video.volume;
+    setVolume(current + step);
+  }, [setVolume]);
+
+  const volumeDown = useCallback((step = 0.05) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const current = video.muted ? 0 : video.volume;
+    setVolume(current - step);
+  }, [setVolume]);
 
   const setQuality = useCallback((index: number) => {
     if (!hlsRef.current) return;
@@ -697,6 +761,8 @@ export function useHlsPlayer({
     togglePlay,
     toggleMute,
     setVolume,
+    volumeUp,
+    volumeDown,
     setQuality,
     setAspectRatio,
     retryPlayback,
