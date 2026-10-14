@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="tv_bg">#FF090D16</color>
+    <color name="card_bg">#FF131C2E</color>
+    <color name="card_focus_bg">#FF1E293B</color>
+    <color name="amber_gold">#FFF59E0B</color>
+    <color name="emerald">#FF10B981</color>
+    <color name="text_secondary">#FF94A3B8</color>
+</resources>

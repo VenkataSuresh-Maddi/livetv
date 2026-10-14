@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">EasyTV</string>
+    <string name="title_live_tv">Watch Live TV</string>
+    <string name="all_channels">All Channels</string>
+    <string name="favorites">Favorites</string>
+    <string name="recents">Recently Watched</string>
+    <string name="refresh_channels">Refresh Channels</string>
+    <string name="settings">Settings</string>
+    <string name="channel_unavailable">Stream is currently unavailable</string>
+</resources>

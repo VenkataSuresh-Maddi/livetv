@@ -1,0 +1,6 @@
+{
+  "name": "EasyTV - Universal Live TV Streaming",
+  "description": "Accessible, elder-friendly Live TV streaming app for mobile, tablet, desktop, and Smart TV / Amazon Fire TV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
