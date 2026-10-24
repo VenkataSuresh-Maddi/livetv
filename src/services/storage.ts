@@ -6,6 +6,25 @@ const CHANNELS_CACHE_META_KEY = 'easytv_channels_cache_meta_v2';
 const DB_NAME = 'EasyTV_DB_v2';
 const DB_VERSION = 2;
 
+/**
+ * Bump when the channel catalogue shape changes (e.g. new stable channel ids).
+ * Cached catalogues from an older schema are ignored so ids never go stale.
+ */
+export const CATALOGUE_SCHEMA_VERSION = 2;
+
+/**
+ * Older builds generated ids as `${tvgId}-${index}`. Those index suffixes shift
+ * on every playlist refresh, which broke saved favourites/recent channels, so
+ * they are stripped when preferences are loaded.
+ */
+function migrateChannelId(id: string): string {
+  if (typeof id !== 'string') return id;
+  if (id.includes('@') && !id.includes('#')) {
+    return id.replace(/-\d+$/, '');
+  }
+  return id;
+}
+
 export const DEFAULT_PREFERENCES: UserPreferences = {
   favorites: [],
   recentChannels: [],
@@ -32,7 +51,15 @@ export function loadPreferences(): UserPreferences {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return DEFAULT_PREFERENCES;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_PREFERENCES, ...parsed };
+    const merged: UserPreferences = { ...DEFAULT_PREFERENCES, ...parsed };
+    return {
+      ...merged,
+      favorites: Array.isArray(merged.favorites) ? merged.favorites.map(migrateChannelId) : [],
+      recentChannels: Array.isArray(merged.recentChannels)
+        ? merged.recentChannels.map((r) => ({ ...r, channelId: migrateChannelId(r.channelId) }))
+        : [],
+      lastWatchedChannelId: merged.lastWatchedChannelId ? migrateChannelId(merged.lastWatchedChannelId) : null,
+    };
   } catch (err) {
     console.warn('[EasyTV Storage] Could not read preferences from localStorage:', err);
     return DEFAULT_PREFERENCES;
@@ -51,6 +78,7 @@ export interface CatalogueCacheMetadata {
   timestamp: number;
   channelCount: number;
   sourceUrl: string;
+  schemaVersion?: number;
 }
 
 // Save complete channels to IndexedDB (with localStorage fallback for lightweight data)
@@ -61,6 +89,7 @@ export async function saveCachedChannels(channels: Channel[], sourceUrl: string)
     timestamp: Date.now(),
     channelCount: channels.length,
     sourceUrl,
+    schemaVersion: CATALOGUE_SCHEMA_VERSION,
   };
 
   try {
@@ -113,6 +142,11 @@ export async function loadCachedChannels(): Promise<{ channels: Channel[]; meta:
       });
 
       if (result.channels && result.channels.length > 0) {
+        // Ignore catalogues cached before the current channel schema
+        if (result.meta && result.meta.schemaVersion !== CATALOGUE_SCHEMA_VERSION) {
+          console.log('[EasyTV Storage] Discarding catalogue cached with an older schema');
+          return { channels: [], meta: null };
+        }
         return result;
       }
     }
@@ -125,9 +159,13 @@ export async function loadCachedChannels(): Promise<{ channels: Channel[]; meta:
     const rawMeta = localStorage.getItem(CHANNELS_CACHE_META_KEY);
     const rawChannels = localStorage.getItem(CHANNELS_CACHE_KEY);
     if (rawChannels) {
+      const meta = rawMeta ? JSON.parse(rawMeta) : null;
+      if (meta && meta.schemaVersion !== CATALOGUE_SCHEMA_VERSION) {
+        return { channels: [], meta: null };
+      }
       return {
         channels: JSON.parse(rawChannels),
-        meta: rawMeta ? JSON.parse(rawMeta) : null,
+        meta,
       };
     }
   } catch (lsErr) {

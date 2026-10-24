@@ -40,20 +40,6 @@ export type { CategoryGroup };
 // Curated 24/7 high-reliability, public, legitimate live broadcast streams (tested & verified)
 export const CURATED_CHANNELS: Channel[] = [
   {
-    id: 'nasa-tv',
-    name: 'NASA TV Live (HD)',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg',
-    url: 'https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8',
-    group: 'Science',
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'NASA.us',
-    tvgName: 'NASA TV',
-    isVerified: true,
-  },
-  {
     id: 'dw-news-en',
     name: 'DW News Live (English)',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/7/75/Deutsche_Welle_symbol_2012.svg',
@@ -65,34 +51,6 @@ export const CURATED_CHANNELS: Channel[] = [
     resolution: '720p',
     tvgId: 'DWNews.de',
     tvgName: 'DW News',
-    isVerified: true,
-  },
-  {
-    id: 'tears-of-steel-test',
-    name: 'EasyTV Cinema HD Showcase',
-    logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    group: 'Movies',
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'CinemaHD.test',
-    tvgName: 'Cinema HD',
-    isVerified: true,
-  },
-  {
-    id: 'bloomberg-us',
-    name: 'Bloomberg TV News',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Bloomberg_News_logo.svg',
-    url: 'https://liveprodupmx.akamaized.net/us/Channel-UPMX-US-HLS/master.m3u8',
-    group: 'News',
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'BloombergTV.us',
-    tvgName: 'Bloomberg TV',
     isVerified: true,
   },
   {
@@ -110,48 +68,6 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: '2gb-live',
-    name: '2GB Live News (1080p)',
-    logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://2gblive.akamaized.net/hls/live/2033805/2GB/index.m3u8',
-    group: 'News',
-    country: 'AU',
-    countryName: 'Australia',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: '2GB.au',
-    tvgName: '2GB News',
-    isVerified: true,
-  },
-  {
-    id: '3aw-live',
-    name: '3AW News Channel',
-    logo: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://3awlive.akamaized.net/hls/live/2032295/3AW/index.m3u8',
-    group: 'News',
-    country: 'AU',
-    countryName: 'Australia',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: '3AW.au',
-    tvgName: '3AW News',
-    isVerified: true,
-  },
-  {
-    id: 'sky-news-uk',
-    name: 'Sky News UK',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Sky_News_2020.svg',
-    url: 'https://linear417-gb-dash1-prd-cf.cdn.sky.com/instances/1/41701/manifest.m3u8',
-    group: 'News',
-    country: 'UK',
-    countryName: 'United Kingdom',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'SkyNews.uk',
-    tvgName: 'Sky News',
-    isVerified: true,
-  },
-  {
     id: 'redbull-tv',
     name: 'Red Bull TV Sports & Action',
     logo: 'https://upload.wikimedia.org/wikipedia/en/f/f5/Red_Bull_TV_logo.svg',
@@ -163,20 +79,6 @@ export const CURATED_CHANNELS: Channel[] = [
     resolution: '1080p',
     tvgId: 'RedBullTV.at',
     tvgName: 'Red Bull TV',
-    isVerified: true,
-  },
-  {
-    id: 'rtve-24h',
-    name: 'RTVE 24 Horas',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Canal_24_horas_2008.svg',
-    url: 'https://rtvelivestream.akamaized.net/rtvesec/24h/24h_main.m3u8',
-    group: 'News',
-    country: 'ES',
-    countryName: 'Spain',
-    language: 'Spanish',
-    resolution: '1080p',
-    tvgId: 'Canal24Horas.es',
-    tvgName: 'RTVE 24h',
     isVerified: true,
   },
   {
@@ -197,7 +99,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'nhk-world-japan',
     name: 'NHK World Japan',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/8/87/NHK_World-Japan_logo.svg',
-    url: 'https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-tv/global/2003458/live.m3u8',
+    url: 'http://170.83.16.50/NHK_WORLD/index.m3u8',
     group: 'General',
     country: 'JP',
     countryName: 'Japan',
@@ -211,7 +113,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'cna-singapore',
     name: 'CNA (Channel NewsAsia)',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/6/62/CNA_%28news_channel%29_logo.svg',
-    url: 'https://d2e1asnsl7br7b.cloudfront.net/7788/live/live.m3u8',
+    url: 'https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index.m3u8',
     group: 'News',
     country: 'SG',
     countryName: 'Singapore',
@@ -222,72 +124,10 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: 'easytv-entertainment',
-    name: 'EasyTV Entertainment Showcase (HD)',
-    logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'Entertainment',
-    categories: ['Entertainment'],
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'Entertainment.showcase',
-    tvgName: 'Entertainment Showcase',
-    isVerified: true,
-  },
-  {
-    id: 'easytv-kids',
-    name: 'EasyTV Kids Animation Showcase',
-    logo: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    group: 'Kids',
-    categories: ['Kids'],
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'Kids.showcase',
-    tvgName: 'Kids Showcase',
-    isVerified: true,
-  },
-  {
-    id: 'easytv-devotional',
-    name: 'Peace & Faith TV (Devotional Live)',
-    logo: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    group: 'Devotional',
-    categories: ['Devotional'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'Faith.showcase',
-    tvgName: 'Faith TV',
-    isVerified: true,
-  },
-  {
-    id: 'easytv-music',
-    name: 'EasyTV Music & Live Concerts',
-    logo: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'Music',
-    categories: ['Music'],
-    country: 'US',
-    countryName: 'United States',
-    language: 'English',
-    resolution: '1080p',
-    tvgId: 'Music.showcase',
-    tvgName: 'Music TV',
-    isVerified: true,
-  },
-  // --- Indian Regional & Language Channels ---
-  // Telugu
-  {
     id: 'tv9-telugu-live',
     name: 'TV9 Telugu Live News (HD)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://dyjmyiv3bp2ez.cloudfront.net/pub-iotv9telcmjhcs/liveabr/playlist.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -299,25 +139,10 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: 'v6-news-telugu',
-    name: 'V6 News Telugu (24/7)',
-    logo: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    group: 'News',
-    categories: ['News'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Telugu',
-    resolution: '1080p',
-    tvgId: 'V6News.in',
-    tvgName: 'V6 News',
-    isVerified: true,
-  },
-  {
     id: 'star-maa-telugu',
     name: 'Star Maa (Telugu Entertainment)',
     logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://da86m1sqpm3o0.cloudfront.net/28072023/smil:starmaa1.smil/chunklist_b2628000.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -332,7 +157,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'star-maa-movies-hd',
     name: 'Star Maa Movies HD',
     logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://da86m1sqpm3o0.cloudfront.net/28072023/smil:maamovies.smil/chunklist_b2628000.m3u8',
     group: 'Movies',
     categories: ['Movies'],
     country: 'IN',
@@ -347,7 +172,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'zee-telugu',
     name: 'Zee Telugu HD (Entertainment)',
     logo: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://raw.githubusercontent.com/amazeyourself/adaptive-streams/refs/heads/main/streams/in/YuppTV/ZeeTeluguHD.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -362,7 +187,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'sun-gemini-tv',
     name: 'Sun Gemini TV Telugu',
     logo: 'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'http://ptuf.ridsys.in/riptv/live/GEMINI_TV/index.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -374,26 +199,10 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: 'bhakti-tv-telugu',
-    name: 'Bhakti TV (Telugu Devotional)',
-    logo: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    group: 'Devotional',
-    categories: ['Devotional'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Telugu',
-    resolution: '1080p',
-    tvgId: 'BhaktiTV.in',
-    tvgName: 'Bhakti TV',
-    isVerified: true,
-  },
-  // Hindi
-  {
     id: 'aaj-tak-hindi',
     name: 'Aaj Tak Live (Hindi News)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://feeds.intoday.in/aajtak/api/aajtakhd/master.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -408,7 +217,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'ndtv-india-hindi',
     name: 'NDTV India (Hindi News HD)',
     logo: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://raw.githubusercontent.com/amazeyourself/adaptive-streams/refs/heads/main/streams/in/YuppTV/NDTVIndia.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -420,25 +229,10 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: 'star-plus-hindi',
-    name: 'Star Plus (Hindi Entertainment)',
-    logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'Entertainment',
-    categories: ['Entertainment'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Hindi',
-    resolution: '1080p',
-    tvgId: 'StarPlus.in',
-    tvgName: 'Star Plus',
-    isVerified: true,
-  },
-  {
     id: 'zee-tv-hindi',
     name: 'Zee TV HD (Hindi Entertainment)',
     logo: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'http://103.151.60.162:2122/play/a01u/index.m3u8?hls',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -453,7 +247,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'aastha-tv-hindi',
     name: 'Aastha TV (Hindi Devotional)',
     logo: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://aasthaott.akamaized.net/110923/smil:aasthatv.smil/index.m3u8',
     group: 'Devotional',
     categories: ['Devotional'],
     country: 'IN',
@@ -469,7 +263,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'sun-tv-tamil',
     name: 'Sun TV (Tamil Entertainment HD)',
     logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://d2px1d6ssc60fw.cloudfront.net/SunTV/SunTV-HDR10-IN-index.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -484,7 +278,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'star-vijay-tamil',
     name: 'Star Vijay (Tamil Entertainment)',
     logo: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://da86m1sqpm3o0.cloudfront.net/28072023/smil:starvijayuk.smil/playlist.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -496,26 +290,10 @@ export const CURATED_CHANNELS: Channel[] = [
     isVerified: true,
   },
   {
-    id: 'sun-news-tamil',
-    name: 'Sun News Tamil (24/7 Live)',
-    logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'News',
-    categories: ['News'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Tamil',
-    resolution: '1080p',
-    tvgId: 'SunNews.in',
-    tvgName: 'Sun News',
-    isVerified: true,
-  },
-  // Kannada
-  {
     id: 'tv9-kannada-live',
     name: 'TV9 Kannada Live News',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://dyjmyiv3bp2ez.cloudfront.net/pub-iotv9kanmo6oiq/liveabr/playlist.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -530,7 +308,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'zee-kannada',
     name: 'Zee Kannada (Entertainment)',
     logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://yuppnimresmum.akamaized.net/28072023/smil:zeekannadahd.smil/playlist.m3u8?hdnts=st=1735898689~exp=1835898688~acl=*~hmac=f5fe24724fe05481e3841f9eb5ab8efdee0a3dd83645ae9dcf45703f525bab7b',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -546,7 +324,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'asianet-news-malayalam',
     name: 'Asianet News Malayalam (Live)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://amg13737-amg13737c1-amgplt0016.playout.now3.amagi.tv/playlist/amg13737-amg13737c1-amgplt0016/playlist.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -561,7 +339,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'asianet-malayalam',
     name: 'Asianet (Malayalam Entertainment)',
     logo: 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://da86m1sqpm3o0.cloudfront.net/28072023/smil:starasianet.smil/chunklist_b1928000.m3u8',
     group: 'Entertainment',
     categories: ['Entertainment'],
     country: 'IN',
@@ -577,7 +355,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'abp-ananda-bengali',
     name: 'ABP Ananda (Bengali News)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://d2l4ar6y3mrs4k.cloudfront.net/live-streaming/ananda-livetv/master.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -593,7 +371,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'abp-majha-marathi',
     name: 'ABP Majha (Marathi News)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://yupprestreamliveus.akamaized.net/vglive-sk-355289/majha/master.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -609,7 +387,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'abp-asmita-gujarati',
     name: 'ABP Asmita (Gujarati News)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://d2l4ar6y3mrs4k.cloudfront.net/live-streaming/asmita-livetv/master.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -625,7 +403,7 @@ export const CURATED_CHANNELS: Channel[] = [
     id: 'ptc-news-punjabi',
     name: 'PTC News (Punjabi Live)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    url: 'https://streams.tangotv.in/PTCNEWS/ORIGIN/index.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -638,26 +416,10 @@ export const CURATED_CHANNELS: Channel[] = [
   },
   // Odia
   {
-    id: 'otv-odia-news',
-    name: 'OTV Odisha (Odia News)',
-    logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'News',
-    categories: ['News'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Odia',
-    resolution: '1080p',
-    tvgId: 'OTV.in',
-    tvgName: 'OTV Odia',
-    isVerified: true,
-  },
-  // Assamese
-  {
     id: 'news-live-assamese',
     name: 'News Live (Assamese 24/7)',
     logo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    url: 'https://prideeast.thelegitpro.in/newslive/newslive/index.m3u8',
     group: 'News',
     categories: ['News'],
     country: 'IN',
@@ -666,22 +428,6 @@ export const CURATED_CHANNELS: Channel[] = [
     resolution: '1080p',
     tvgId: 'NewsLive.in',
     tvgName: 'News Live Assam',
-    isVerified: true,
-  },
-  // Bhojpuri
-  {
-    id: 'zee-ganga-bhojpuri',
-    name: 'Zee Ganga (Bhojpuri Entertainment)',
-    logo: 'https://images.unsplash.com/photo-1578022761797-b8636ac1773c?w=200&auto=format&fit=crop&q=80',
-    url: 'https://test-streams.mux.dev/test_001/stream.m3u8',
-    group: 'Entertainment',
-    categories: ['Entertainment'],
-    country: 'IN',
-    countryName: 'India',
-    language: 'Bhojpuri',
-    resolution: '1080p',
-    tvgId: 'ZeeGanga.in',
-    tvgName: 'Zee Ganga',
     isVerified: true,
   },
 ];
@@ -732,12 +478,116 @@ export const POPULAR_PLAYLIST_SOURCES = [
  * Fast, unconstrained M3U playlist parser.
  * Processes the entire downloaded playlist without arbitrary limits.
  */
-export function parseM3U(m3uContent: string, maxChannels?: number): Channel[] {
+/**
+ * Subset of the iptv-org public API channel record (channels.json).
+ * The M3U playlist only carries tvg-id, logo and group-title, so this metadata
+ * is used to fill in the country / language / category information the app
+ * filters and personalizes on.
+ */
+export interface IptvChannelMetadata {
+  id: string;
+  name?: string;
+  country?: string;
+  languages?: string[];
+  categories?: string[];
+  is_nsfw?: boolean;
+}
+
+const IPTV_ORG_CHANNELS_API = 'https://iptv-org.github.io/api/channels.json';
+let channelMetadataPromise: Promise<Map<string, IptvChannelMetadata>> | null = null;
+
+/** Downloads (once per session) the iptv-org channel metadata map. Never throws. */
+export function fetchIptvOrgChannelMetadata(timeoutMs = 15000): Promise<Map<string, IptvChannelMetadata>> {
+  if (!channelMetadataPromise) {
+    channelMetadataPromise = (async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(IPTV_ORG_CHANNELS_API, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        });
+        if (!res.ok) return new Map<string, IptvChannelMetadata>();
+
+        const data = await res.json();
+        const map = new Map<string, IptvChannelMetadata>();
+        if (Array.isArray(data)) {
+          for (const entry of data) {
+            if (entry && typeof entry.id === 'string') {
+              map.set(entry.id, entry as IptvChannelMetadata);
+            }
+          }
+        }
+        return map;
+      } catch (err) {
+        console.warn('[EasyTV IPTV] Could not load iptv-org channel metadata (continuing without it):', err);
+        return new Map<string, IptvChannelMetadata>();
+      } finally {
+        clearTimeout(timer);
+      }
+    })();
+  }
+  return channelMetadataPromise;
+}
+
+/** `StarMaa.in@HD` -> `StarMaa.in` */
+function tvgIdBase(tvgId?: string): string {
+  return (tvgId || '').split('@')[0].trim();
+}
+
+/** iptv-org encodes the country in the channel id: `StarMaa.in@HD` -> `IN`. */
+function countryFromTvgId(tvgId?: string): string | undefined {
+  const match = tvgIdBase(tvgId).match(/\.([a-zA-Z]{2})$/);
+  return match ? match[1].toUpperCase() : undefined;
+}
+
+/** Small deterministic hash so channel ids stay stable across playlist refreshes. */
+function stableHash(input: string): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * Parses an M3U/M3U8 IPTV playlist into Channel records.
+ *
+ * Works with the iptv-org index playlist format:
+ *   #EXTINF:-1 tvg-id="StarMaa.in@SD" tvg-logo="..." group-title="Entertainment",Star Maa
+ *   https://...
+ *
+ * Country, language and categories are resolved from (in order) the playlist
+ * attributes, the iptv-org metadata map, the tvg-id country suffix, and finally
+ * name heuristics.
+ */
+export function parseM3U(
+  m3uContent: string,
+  maxChannels?: number,
+  metadata?: Map<string, IptvChannelMetadata>
+): Channel[] {
   const lines = m3uContent.split(/\r?\n/);
   const channels: Channel[] = [];
   const seenUrls = new Set<string>();
+  const usedIds = new Set<string>();
 
   let currentInfo: Partial<Channel> | null = null;
+
+  const buildId = (tvgId: string | undefined, name: string, url: string): string => {
+    const base = tvgId && tvgId.trim()
+      ? tvgId.trim()
+      : `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${stableHash(url)}`;
+
+    if (!usedIds.has(base)) {
+      usedIds.add(base);
+      return base;
+    }
+
+    // Same tvg-id served from a different URL (backup source): keep it unique but stable.
+    const fallback = `${base}#${stableHash(url)}`;
+    usedIds.add(fallback);
+    return fallback;
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -784,27 +634,42 @@ export function parseM3U(m3uContent: string, maxChannels?: number): Channel[] {
         if (!seenUrls.has(streamUrl)) {
           seenUrls.add(streamUrl);
 
-          const rawId = currentInfo.tvgId || currentInfo.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const id = `${rawId}-${channels.length}`;
+          const info = currentInfo;
+          const channelName = info.name as string;
+          const meta = metadata?.get(tvgIdBase(info.tvgId));
 
-          const countryCode = currentInfo.country || 'US';
+          // Country: playlist attribute -> iptv-org metadata -> tvg-id suffix -> US
+          const countryCode = (
+            info.country ||
+            meta?.country ||
+            countryFromTvgId(info.tvgId) ||
+            'US'
+          ).toUpperCase();
           const countryMeta = COUNTRY_NAMES[countryCode];
 
-          const rawGroup = currentInfo.group || 'General';
+          // Category: playlist group-title, falling back to iptv-org categories
+          let rawGroup = info.group && info.group.trim();
+          if (!rawGroup || /^(undefined|uncategorized|unknown|other)$/i.test(rawGroup)) {
+            rawGroup = meta?.categories && meta.categories.length > 0
+              ? meta.categories.join(';')
+              : 'General';
+          }
           const categories = extractChannelCategories({ group: rawGroup });
           const primaryGroup = categories[0] || 'General';
 
           // Detect and normalize language
           let channelLanguage = 'English';
-          if (currentInfo.language) {
-            channelLanguage = normalizeLanguageName(currentInfo.language);
+          if (info.language) {
+            channelLanguage = normalizeLanguageName(info.language);
+          } else if (meta?.languages && meta.languages.length > 0) {
+            channelLanguage = normalizeLanguageName(meta.languages[0]);
           } else {
             const normalizedGroup = normalizeLanguageName(rawGroup);
             if (CANONICAL_LANGUAGES.some((l) => l.name.toLowerCase() === normalizedGroup.toLowerCase())) {
               channelLanguage = normalizedGroup;
             } else {
               for (const canon of CANONICAL_LANGUAGES) {
-                if (new RegExp(`\\b${canon.name.toLowerCase()}\\b`, 'i').test(currentInfo.name || '')) {
+                if (new RegExp(`\\b${canon.name.toLowerCase()}\\b`, 'i').test(channelName)) {
                   channelLanguage = canon.name;
                   break;
                 }
@@ -813,18 +678,18 @@ export function parseM3U(m3uContent: string, maxChannels?: number): Channel[] {
           }
 
           channels.push({
-            id,
-            name: currentInfo.name,
-            logo: currentInfo.logo || '',
+            id: buildId(info.tvgId, channelName, streamUrl),
+            name: channelName,
+            logo: info.logo || '',
             url: streamUrl,
             group: primaryGroup,
             categories,
             country: countryCode,
             countryName: countryMeta ? countryMeta.name : countryCode,
             language: channelLanguage,
-            resolution: currentInfo.resolution || 'HD',
-            tvgId: currentInfo.tvgId,
-            tvgName: currentInfo.tvgName,
+            resolution: info.resolution || 'HD',
+            tvgId: info.tvgId,
+            tvgName: info.tvgName || meta?.name,
           });
 
           if (maxChannels && channels.length >= maxChannels) {
@@ -855,6 +720,10 @@ export async function fetchPlaylist(url: string): Promise<Channel[]> {
 
   let rawM3U = '';
   let succeeded = false;
+
+  // The playlist and the iptv-org metadata are downloaded in parallel: the
+  // metadata is what gives each channel its correct country/language/category.
+  const metadataPromise = fetchIptvOrgChannelMetadata(20000);
 
   // 1. Try direct fetch first (IPTV-org on GitHub Pages has Access-Control-Allow-Origin: *)
   try {
@@ -890,15 +759,30 @@ export async function fetchPlaylist(url: string): Promise<Channel[]> {
     throw new Error('Unable to download playlist. Please check your network connection.');
   }
 
+  const metadata = await Promise.race([
+    metadataPromise,
+    new Promise<Map<string, IptvChannelMetadata>>((resolve) => setTimeout(() => resolve(new Map()), 10000)),
+  ]);
+
   // Parse without maxChannels cap to load the entire source
-  const parsed = parseM3U(rawM3U);
+  const parsed = parseM3U(rawM3U, undefined, metadata);
   if (parsed.length === 0) {
     throw new Error('Downloaded playlist contained no playable stream entries.');
   }
 
-  // Prepend verified curated channels to ensure core channels are always at the top
+  // Prepend verified curated channels to ensure core channels are always at the top,
+  // skipping playlist entries that duplicate a curated channel (same tvg-id or URL).
   const verifiedUrls = new Set(CURATED_CHANNELS.map((c) => c.url));
-  const uniqueParsed = parsed.filter((c) => !verifiedUrls.has(c.url));
+  const curatedTvgIds = new Set(
+    CURATED_CHANNELS.map((c) => tvgIdBase(c.tvgId).toLowerCase()).filter(Boolean)
+  );
+
+  const uniqueParsed = parsed.filter((c) => {
+    if (verifiedUrls.has(c.url)) return false;
+    const base = tvgIdBase(c.tvgId).toLowerCase();
+    if (base && curatedTvgIds.has(base)) return false;
+    return true;
+  });
 
   return [...CURATED_CHANNELS, ...uniqueParsed];
 }

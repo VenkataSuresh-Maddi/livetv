@@ -276,7 +276,7 @@ export const LanguageOnboardingModal: React.FC<LanguageOnboardingModalProps> = (
                   className="p-2.5 rounded-xl bg-black/40 border border-zinc-800 flex items-center gap-2 text-left"
                 >
                   {c.logo ? (
-                    <img src={c.logo} alt={c.name} className="w-6 h-6 object-contain rounded bg-zinc-900 p-0.5" />
+                    <img referrerPolicy="no-referrer" src={c.logo} alt={c.name} className="w-6 h-6 object-contain rounded bg-zinc-900 p-0.5" />
                   ) : (
                     <Tv className="w-5 h-5 text-red-500 shrink-0" />
                   )}

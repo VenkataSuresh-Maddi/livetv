@@ -523,7 +523,7 @@ export const Player: React.FC<PlayerProps> = ({
             )}
 
             {channel.logo ? (
-              <img
+              <img referrerPolicy="no-referrer"
                 src={channel.logo}
                 alt={channel.name}
                 className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg bg-zinc-950 p-1 border border-zinc-800 shrink-0"
@@ -1032,7 +1032,7 @@ export const Player: React.FC<PlayerProps> = ({
                 }`}
               >
                 {item.logo ? (
-                  <img
+                  <img referrerPolicy="no-referrer"
                     src={item.logo}
                     alt={item.name}
                     className="w-10 h-10 object-contain p-1 rounded-xl bg-zinc-950 border border-zinc-800 shrink-0"

@@ -4,6 +4,13 @@ import { AspectRatioMode, QualityLevel, PlayerState } from '../types';
 
 interface UseHlsPlayerProps {
   streamUrl: string | null;
+  /**
+   * True when the player view (and therefore the <video> element) is mounted.
+   * The hook lives in App, while the <video> only exists on the player tab, so
+   * without this flag the first channel open targets a missing element and the
+   * stream is never attached.
+   */
+  isPlayerActive?: boolean;
   preferredQuality?: string;
   preferredAspectRatio?: AspectRatioMode;
   onPlaybackSuccess?: () => void;
@@ -12,6 +19,7 @@ interface UseHlsPlayerProps {
 
 export function useHlsPlayer({
   streamUrl,
+  isPlayerActive = true,
   preferredQuality = 'auto',
   preferredAspectRatio = 'original',
   onPlaybackSuccess,
@@ -528,6 +536,11 @@ export function useHlsPlayer({
 
   // Watch for streamUrl prop changes
   useEffect(() => {
+    if (!isPlayerActive) return;
+
+    // The <video> element only exists once the player view has rendered.
+    if (!videoRef.current) return;
+
     if (!streamUrl) {
       cleanup();
       setState((prev) => ({
@@ -549,7 +562,7 @@ export function useHlsPlayer({
     return () => {
       cleanup();
     };
-  }, [streamUrl, initPlayer, cleanup]);
+  }, [streamUrl, isPlayerActive, initPlayer, cleanup]);
 
   // Video element event listeners (manage live refs and clear watchdog)
   useEffect(() => {

@@ -121,6 +121,7 @@ export default function App() {
     retryPlayback,
   } = useHlsPlayer({
     streamUrl: selectedChannel?.url || null,
+    isPlayerActive: activeTab === 'player',
     preferredQuality: preferences.preferredQuality,
     preferredAspectRatio: preferences.preferredAspectRatio,
     onPlaybackSuccess: handlePlaybackSuccess,
@@ -428,13 +429,16 @@ export default function App() {
               favorites={preferences.favorites}
               categories={categories}
               countries={countries}
+              languages={languages}
               selectedCategory={preferences.selectedCategory}
               selectedCountry={preferences.selectedCountry}
+              selectedLanguage={preferences.selectedLanguage}
               searchQuery={preferences.searchQuery}
               onSelectChannel={handleSelectChannel}
               onToggleFavorite={handleToggleFavorite}
               onSelectCategory={(cat) => updatePreferences({ selectedCategory: cat })}
               onSelectCountry={(c) => updatePreferences({ selectedCountry: c })}
+              onSelectLanguage={(lang) => updatePreferences({ selectedLanguage: lang })}
               onSearchChange={(q) => updatePreferences({ searchQuery: q })}
             />
           </div>
@@ -451,13 +455,16 @@ export default function App() {
                 favorites={preferences.favorites}
                 categories={categories}
                 countries={countries}
+                languages={languages}
                 selectedCategory={preferences.selectedCategory}
                 selectedCountry={preferences.selectedCountry}
+                selectedLanguage={preferences.selectedLanguage}
                 searchQuery={preferences.searchQuery}
                 onSelectChannel={handleSelectChannel}
                 onToggleFavorite={handleToggleFavorite}
                 onSelectCategory={(cat) => updatePreferences({ selectedCategory: cat })}
                 onSelectCountry={(c) => updatePreferences({ selectedCountry: c })}
+                onSelectLanguage={(lang) => updatePreferences({ selectedLanguage: lang })}
                 onSearchChange={(q) => updatePreferences({ searchQuery: q })}
               />
             ) : (
@@ -920,7 +927,7 @@ export default function App() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             {channel.logo ? (
-                              <img
+                              <img referrerPolicy="no-referrer"
                                 src={channel.logo}
                                 alt={channel.name}
                                 className="w-12 h-12 object-contain p-1 rounded-xl bg-zinc-950 border border-zinc-800"
@@ -1010,7 +1017,7 @@ export default function App() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       {channel.logo ? (
-                        <img
+                        <img referrerPolicy="no-referrer"
                           src={channel.logo}
                           alt={channel.name}
                           className="w-12 h-12 object-contain p-1 rounded-xl bg-zinc-950 border border-zinc-800"

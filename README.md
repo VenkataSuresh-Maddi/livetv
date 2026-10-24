@@ -22,9 +22,16 @@ EasyTV is a modern, high-performance Live TV streaming application inspired by N
   2. **12-Second Watchdog Timer**: Added a bounded connection watchdog in `useHlsPlayer.ts` that terminates stalled connection attempts cleanly.
   3. **Autoplay Block Resolution**: Detects `NotAllowedError` and renders an intuitive, one-tap "Click to Watch Live Stream" button.
   4. **Bounded Retries**: Maximum 1 proxy retry attempt with clean fallback to human-readable error messages.
-  5. **Verified Curated Channels**: Curated channels were updated to 100% verified 200 OK streams (NASA TV, DW News Live HD, Bloomberg, Tears of Steel Cinema Showcase, 3Cat Info, 2GB, 3AW, etc.).
+  5. **Verified Curated Channels**: Curated channels were repointed at real broadcaster sources (DW News, 3Cat Info, Red Bull TV, Tagesschau 24, TV9 Telugu, Aaj Tak, NDTV India, Sun TV, ABP Ananda/Majha/Asmita, PTC News, etc.). Placeholder demo streams and dead entries (NASA TV, Bloomberg, 2GB, 3AW, Sky News, RTVE) were removed.
 
-### 3. Redesigned Netflix-Inspired Streaming Interface
+### 3. Live Playlist Integration (`iptv-org` index.m3u)
+- **Single source of truth**: the catalogue is loaded from `https://iptv-org.github.io/iptv/index.m3u` (configurable in Settings), parsed in full (~11,300 channels) and cached in IndexedDB.
+- **Correct channel metadata**: the playlist only carries `tvg-id`, logo and a category, so each entry is enriched from the iptv-org `channels.json` API — country, language and multi-category genres are resolved from the channel id (`StarMaa.in@HD` → India).
+- **Stable channel ids**: ids are derived from the `tvg-id` (not the list index), so favourites, recent channels and watch history survive catalogue refreshes.
+- **No duplicate pins**: curated channels are merged by `tvg-id`, so a channel never appears twice.
+- **First-click playback fix**: the player hook now waits for the player view (`<video>`) to mount before attaching the stream, so the very first "Watch Live Now" click starts playback.
+
+### 4. Redesigned Netflix-Inspired Streaming Interface
 - **Dark Cinema Theme**: Deep near-black background (`#141414`), charcoal card surfaces (`#181818`), and Netflix-red accents (`#E50914`).
 - **Hero Billboard Banner**: Featured live broadcast billboard with channel artwork, category tags, resolution badges, red pulsating LIVE indicators, and big "▶ Watch Live Now" action.
 - **Horizontal Carousels**:

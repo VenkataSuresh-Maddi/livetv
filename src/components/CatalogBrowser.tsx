@@ -79,7 +79,7 @@ export const CatalogBrowser: React.FC<CatalogBrowserProps> = ({
     }
 
     return list;
-  }, [channels, selectedCategory, selectedCountry, searchQuery]);
+  }, [channels, selectedCategory, selectedCountry, selectedLanguage, searchQuery]);
 
   // Paginated slice for silky smooth 60fps rendering
   const visibleChannels = useMemo(() => {

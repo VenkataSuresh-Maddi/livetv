@@ -135,7 +135,7 @@ export const EasyModeHero: React.FC<EasyModeHeroProps> = ({
                 className="p-4 rounded-2xl bg-slate-900 border border-amber-500/40 hover:border-amber-400 flex items-center gap-3 text-left hover:scale-[1.02] transition-transform"
               >
                 {ch.logo ? (
-                  <img
+                  <img referrerPolicy="no-referrer"
                     src={ch.logo}
                     alt={ch.name}
                     className="w-10 h-10 object-contain rounded-lg bg-slate-950 p-1 shrink-0"
@@ -171,7 +171,7 @@ export const EasyModeHero: React.FC<EasyModeHeroProps> = ({
                 className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-400 flex items-center gap-3 text-left hover:scale-[1.02] transition-transform"
               >
                 {ch.logo ? (
-                  <img
+                  <img referrerPolicy="no-referrer"
                     src={ch.logo}
                     alt={ch.name}
                     className="w-10 h-10 object-contain rounded-lg bg-slate-950 p-1 shrink-0"

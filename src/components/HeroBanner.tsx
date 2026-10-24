@@ -62,7 +62,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
         {/* Channel Title & Logo */}
         <div className="flex items-center gap-4 pt-1">
           {channel.logo ? (
-            <img
+            <img referrerPolicy="no-referrer"
               src={channel.logo}
               alt={channel.name}
               className="w-16 h-16 sm:w-20 sm:h-20 object-contain p-2 rounded-2xl bg-zinc-900/90 border border-zinc-700 shadow-xl shrink-0"
