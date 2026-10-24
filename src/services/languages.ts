@@ -291,16 +291,19 @@ export function extractLanguages(channels: Channel[]): Language[] {
     processed.add(canon.name.toLowerCase());
   }
 
-  // 2. Add extra discovered languages with channels
-  for (const [langName, count] of counts.entries()) {
-    if (!processed.has(langName.toLowerCase()) && count > 0) {
-      result.push({
-        id: langName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        name: langName,
-        count,
-      });
-      processed.add(langName.toLowerCase());
-    }
+  // 2. Add extra discovered languages with a meaningful number of channels,
+  //    busiest first, so the language picker stays usable.
+  const extras = Array.from(counts.entries())
+    .filter(([langName, count]) => !processed.has(langName.toLowerCase()) && count >= 3)
+    .sort((a, b) => b[1] - a[1]);
+
+  for (const [langName, count] of extras) {
+    result.push({
+      id: langName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      name: langName,
+      count,
+    });
+    processed.add(langName.toLowerCase());
   }
 
   return result;

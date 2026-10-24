@@ -93,6 +93,19 @@ describe('IPTV M3U Parser (No Arbitrary Cap & Accurate Parsing)', () => {
     assert.strictEqual(channel.group, 'News', 'Undefined group must fall back to API categories');
   });
 
+  it('should apply the iptv-org language playlist map', () => {
+    const m3u = [
+      '#EXTM3U',
+      '#EXTINF:-1 tvg-id="StarMaa.in@HD" group-title="Entertainment",Star Maa HD',
+      'https://da86m1sqpm3o0.cloudfront.net/starmaa.m3u8',
+    ].join('\n');
+
+    const languageMap = new Map([['StarMaa.in', 'Telugu']]);
+    const [channel] = parseM3U(m3u, undefined, undefined, languageMap);
+
+    assert.strictEqual(channel.language, 'Telugu', 'language playlist group-title must be used');
+  });
+
   it('should generate stable channel ids across refreshes', () => {
     const build = (order: string[]) =>
       parseM3U(

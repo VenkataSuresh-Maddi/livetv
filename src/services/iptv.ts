@@ -494,40 +494,74 @@ export interface IptvChannelMetadata {
 }
 
 const IPTV_ORG_CHANNELS_API = 'https://iptv-org.github.io/api/channels.json';
+const IPTV_ORG_LANGUAGE_PLAYLIST = 'https://iptv-org.github.io/iptv/index.language.m3u';
 let channelMetadataPromise: Promise<Map<string, IptvChannelMetadata>> | null = null;
+let languageMapPromise: Promise<Map<string, string>> | null = null;
+
+function fetchJsonWithTimeout<T>(url: string, timeoutMs: number): Promise<T | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal, headers: { Accept: '*/*' } })
+    .then((res) => (res.ok ? (res.json() as Promise<T>) : null))
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
+}
 
 /** Downloads (once per session) the iptv-org channel metadata map. Never throws. */
 export function fetchIptvOrgChannelMetadata(timeoutMs = 15000): Promise<Map<string, IptvChannelMetadata>> {
   if (!channelMetadataPromise) {
     channelMetadataPromise = (async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const res = await fetch(IPTV_ORG_CHANNELS_API, {
-          signal: controller.signal,
-          headers: { Accept: 'application/json' },
-        });
-        if (!res.ok) return new Map<string, IptvChannelMetadata>();
-
-        const data = await res.json();
-        const map = new Map<string, IptvChannelMetadata>();
-        if (Array.isArray(data)) {
-          for (const entry of data) {
-            if (entry && typeof entry.id === 'string') {
-              map.set(entry.id, entry as IptvChannelMetadata);
-            }
+      const data = await fetchJsonWithTimeout<IptvChannelMetadata[]>(IPTV_ORG_CHANNELS_API, timeoutMs);
+      const map = new Map<string, IptvChannelMetadata>();
+      if (Array.isArray(data)) {
+        for (const entry of data) {
+          if (entry && typeof entry.id === 'string') {
+            map.set(entry.id, entry);
           }
         }
-        return map;
-      } catch (err) {
-        console.warn('[EasyTV IPTV] Could not load iptv-org channel metadata (continuing without it):', err);
-        return new Map<string, IptvChannelMetadata>();
-      } finally {
-        clearTimeout(timer);
       }
+      if (map.size === 0) {
+        console.warn('[EasyTV IPTV] Channel metadata unavailable, continuing with playlist data only');
+      }
+      return map;
     })();
   }
   return channelMetadataPromise;
+}
+
+/**
+ * iptv-org publishes the same catalogue grouped by spoken language
+ * (`index.language.m3u`). Its group-title is the language name, which is the
+ * only public source of per-channel language data, so it is joined on tvg-id.
+ */
+export function fetchIptvOrgLanguageMap(timeoutMs = 15000): Promise<Map<string, string>> {
+  if (!languageMapPromise) {
+    languageMapPromise = (async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const map = new Map<string, string>();
+      try {
+        const res = await fetch(IPTV_ORG_LANGUAGE_PLAYLIST, { signal: controller.signal });
+        if (!res.ok) return map;
+
+        const text = await res.text();
+        for (const line of text.split(/\r?\n/)) {
+          if (!line.startsWith('#EXTINF:')) continue;
+          const idMatch = line.match(/tvg-id="([^"]*)"/i);
+          const groupMatch = line.match(/group-title="([^"]*)"/i);
+          if (!idMatch || !groupMatch || !idMatch[1] || !groupMatch[1]) continue;
+          const base = tvgIdBase(idMatch[1]);
+          if (base && !map.has(base)) map.set(base, groupMatch[1]);
+        }
+      } catch (err) {
+        console.warn('[EasyTV IPTV] Could not load iptv-org language map:', err);
+      } finally {
+        clearTimeout(timer);
+      }
+      return map;
+    })();
+  }
+  return languageMapPromise;
 }
 
 /** `StarMaa.in@HD` -> `StarMaa.in` */
@@ -564,7 +598,8 @@ function stableHash(input: string): string {
 export function parseM3U(
   m3uContent: string,
   maxChannels?: number,
-  metadata?: Map<string, IptvChannelMetadata>
+  metadata?: Map<string, IptvChannelMetadata>,
+  languageMap?: Map<string, string>
 ): Channel[] {
   const lines = m3uContent.split(/\r?\n/);
   const channels: Channel[] = [];
@@ -657,13 +692,20 @@ export function parseM3U(
           const categories = extractChannelCategories({ group: rawGroup });
           const primaryGroup = categories[0] || 'General';
 
-          // Detect and normalize language
-          let channelLanguage = 'English';
+          // Language: playlist attribute -> iptv-org language playlist -> API -> name heuristics
+          let channelLanguage: string | undefined;
           if (info.language) {
             channelLanguage = normalizeLanguageName(info.language);
-          } else if (meta?.languages && meta.languages.length > 0) {
-            channelLanguage = normalizeLanguageName(meta.languages[0]);
           } else {
+            const languageFromPlaylist = languageMap?.get(tvgIdBase(info.tvgId));
+            if (languageFromPlaylist) {
+              channelLanguage = normalizeLanguageName(languageFromPlaylist);
+            } else if (meta?.languages && meta.languages.length > 0) {
+              channelLanguage = normalizeLanguageName(meta.languages[0]);
+            }
+          }
+
+          if (!channelLanguage) {
             const normalizedGroup = normalizeLanguageName(rawGroup);
             if (CANONICAL_LANGUAGES.some((l) => l.name.toLowerCase() === normalizedGroup.toLowerCase())) {
               channelLanguage = normalizedGroup;
@@ -676,6 +718,8 @@ export function parseM3U(
               }
             }
           }
+
+          channelLanguage = channelLanguage || 'English';
 
           channels.push({
             id: buildId(info.tvgId, channelName, streamUrl),
@@ -724,6 +768,7 @@ export async function fetchPlaylist(url: string): Promise<Channel[]> {
   // The playlist and the iptv-org metadata are downloaded in parallel: the
   // metadata is what gives each channel its correct country/language/category.
   const metadataPromise = fetchIptvOrgChannelMetadata(20000);
+  const languageMapPromise = fetchIptvOrgLanguageMap(20000);
 
   // 1. Try direct fetch first (IPTV-org on GitHub Pages has Access-Control-Allow-Origin: *)
   try {
@@ -759,13 +804,19 @@ export async function fetchPlaylist(url: string): Promise<Channel[]> {
     throw new Error('Unable to download playlist. Please check your network connection.');
   }
 
-  const metadata = await Promise.race([
-    metadataPromise,
-    new Promise<Map<string, IptvChannelMetadata>>((resolve) => setTimeout(() => resolve(new Map()), 10000)),
+  const withTimeout = <T>(promise: Promise<T>, fallback: T) =>
+    Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), 10000)),
+    ]);
+
+  const [metadata, languageMap] = await Promise.all([
+    withTimeout(metadataPromise, new Map<string, IptvChannelMetadata>()),
+    withTimeout(languageMapPromise, new Map<string, string>()),
   ]);
 
   // Parse without maxChannels cap to load the entire source
-  const parsed = parseM3U(rawM3U, undefined, metadata);
+  const parsed = parseM3U(rawM3U, undefined, metadata, languageMap);
   if (parsed.length === 0) {
     throw new Error('Downloaded playlist contained no playable stream entries.');
   }

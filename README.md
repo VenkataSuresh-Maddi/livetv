@@ -26,7 +26,7 @@ EasyTV is a modern, high-performance Live TV streaming application inspired by N
 
 ### 3. Live Playlist Integration (`iptv-org` index.m3u)
 - **Single source of truth**: the catalogue is loaded from `https://iptv-org.github.io/iptv/index.m3u` (configurable in Settings), parsed in full (~11,300 channels) and cached in IndexedDB.
-- **Correct channel metadata**: the playlist only carries `tvg-id`, logo and a category, so each entry is enriched from the iptv-org `channels.json` API — country, language and multi-category genres are resolved from the channel id (`StarMaa.in@HD` → India).
+- **Correct channel metadata**: the playlist only carries `tvg-id`, logo and a category, so each entry is enriched from iptv-org — country from the channel id (`StarMaa.in@HD` → India), categories/genres from the `channels.json` API, and language from the `index.language.m3u` grouping.
 - **Stable channel ids**: ids are derived from the `tvg-id` (not the list index), so favourites, recent channels and watch history survive catalogue refreshes.
 - **No duplicate pins**: curated channels are merged by `tvg-id`, so a channel never appears twice.
 - **First-click playback fix**: the player hook now waits for the player view (`<video>`) to mount before attaching the stream, so the very first "Watch Live Now" click starts playback.
