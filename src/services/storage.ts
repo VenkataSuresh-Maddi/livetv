@@ -10,7 +10,7 @@ const DB_VERSION = 2;
  * Bump when the channel catalogue shape changes (e.g. new stable channel ids).
  * Cached catalogues from an older schema are ignored so ids never go stale.
  */
-export const CATALOGUE_SCHEMA_VERSION = 2;
+export const CATALOGUE_SCHEMA_VERSION = 3;
 
 /**
  * Older builds generated ids as `${tvgId}-${index}`. Those index suffixes shift
